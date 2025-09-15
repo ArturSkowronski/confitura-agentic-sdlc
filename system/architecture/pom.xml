@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>pl.confitura.shop</groupId>
+    <artifactId>shop-parent</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+  </parent>
+  <artifactId>architecture</artifactId>
+  <name>Testy architektury (ArchUnit)</name>
+
+  <dependencies>
+    <dependency>
+      <groupId>pl.confitura.shop</groupId>
+      <artifactId>pricing-lib</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>pl.confitura.shop</groupId>
+      <artifactId>orders-service</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>pl.confitura.shop</groupId>
+      <artifactId>payments-service</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.tngtech.archunit</groupId>
+      <artifactId>archunit-junit5</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+</project>

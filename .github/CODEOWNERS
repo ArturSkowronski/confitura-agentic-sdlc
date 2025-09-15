@@ -1,0 +1,7 @@
+# Właściciele nominalni. Faktycznych wylicza sdlc/context.py z historii gita.
+/system/pricing-lib/       @confitura-shop/pricing
+/system/orders-service/    @confitura-shop/orders
+/system/payments-service/  @confitura-shop/payments
+/system/architecture/      @confitura-shop/platform
+/sdlc/                     @confitura-shop/platform
+/.github/                  @confitura-shop/platform

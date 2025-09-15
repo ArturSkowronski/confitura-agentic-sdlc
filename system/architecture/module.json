@@ -1,0 +1,17 @@
+{
+  "name": "architecture",
+  "kind": "tests",
+  "purpose": "Testy architektury (ArchUnit). Reguły, które pilnują granic między modułami.",
+  "owns": [
+    "archunit"
+  ],
+  "keywords": [
+    "architektura",
+    "reguła",
+    "archunit",
+    "warstwa",
+    "granica"
+  ],
+  "critical": false,
+  "owners": "@confitura-shop/platform"
+}
