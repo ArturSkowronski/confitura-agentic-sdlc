@@ -1,0 +1,20 @@
+{
+  "name": "pricing-lib",
+  "kind": "library",
+  "purpose": "Ceny, rabaty i cała arytmetyka pieniędzy dla sklepu. Używają jej orders-service i payments-service.",
+  "owns": [],
+  "keywords": [
+    "rabat",
+    "zniżka",
+    "promocja",
+    "cena",
+    "próg",
+    "kwota",
+    "zaokrąglenie",
+    "discount",
+    "price",
+    "money"
+  ],
+  "critical": false,
+  "owners": "@confitura-shop/pricing"
+}
