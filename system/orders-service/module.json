@@ -1,0 +1,19 @@
+{
+  "name": "orders-service",
+  "kind": "service",
+  "purpose": "Składanie zamówień, pozycje koszyka, statusy zamówień.",
+  "owns": [
+    "koszyk"
+  ],
+  "keywords": [
+    "zamówienie",
+    "koszyk",
+    "pozycja",
+    "klient",
+    "status",
+    "order",
+    "cart"
+  ],
+  "critical": false,
+  "owners": "@confitura-shop/orders"
+}
