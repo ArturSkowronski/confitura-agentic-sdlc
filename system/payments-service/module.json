@@ -1,0 +1,23 @@
+{
+  "name": "payments-service",
+  "kind": "service",
+  "purpose": "Płatności kartą i zwroty.",
+  "owns": [
+    "zwrot",
+    "płatność",
+    "karta",
+    "operator"
+  ],
+  "keywords": [
+    "płatność",
+    "zwrot",
+    "karta",
+    "operator",
+    "rozliczenie",
+    "idempotencja",
+    "payment",
+    "refund"
+  ],
+  "critical": false,
+  "owners": "@confitura-shop/payments"
+}
