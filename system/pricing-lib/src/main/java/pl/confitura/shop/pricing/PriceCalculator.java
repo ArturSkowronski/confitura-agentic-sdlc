@@ -13,7 +13,7 @@ public final class PriceCalculator {
 
     public Quote quote(List<Money> lineTotals) {
         Money subtotal = lineTotals.stream().reduce(Money.ZERO, Money::plus);
-        Money discount = discountPolicy.discountFor(subtotal);
+        Money discount = discountPolicy.discountFor(subtotal).min(subtotal);
         return new Quote(subtotal, discount, subtotal.minus(discount));
     }
 }
