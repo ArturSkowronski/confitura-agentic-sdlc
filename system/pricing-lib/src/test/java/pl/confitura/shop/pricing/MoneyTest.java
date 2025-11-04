@@ -20,6 +20,12 @@ class MoneyTest {
     }
 
     @Test
+    void computesPercentWithBankersRounding() {
+        assertEquals(Money.of("1.00"), Money.of("10.00").percent(10));
+        assertEquals(Money.of("0.12"), Money.of("1.25").percent(10));
+    }
+
+    @Test
     void rejectsNegativeAmounts() {
         assertThrows(IllegalArgumentException.class, () -> Money.of("-1.00"));
         assertThrows(IllegalArgumentException.class, () -> Money.of("1.00").minus(Money.of("2.00")));
@@ -28,5 +34,6 @@ class MoneyTest {
     @Test
     void comparesAmounts() {
         assertTrue(Money.of("500.01").isGreaterThan(Money.of("500.00")));
+        assertEquals(Money.of("1.00"), Money.of("1.00").min(Money.of("2.00")));
     }
 }

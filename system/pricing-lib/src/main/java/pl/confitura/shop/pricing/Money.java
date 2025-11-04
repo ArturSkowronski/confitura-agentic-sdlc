@@ -39,6 +39,22 @@ public record Money(BigDecimal amount) implements Comparable<Money> {
         return new Money(amount.multiply(BigDecimal.valueOf(quantity)));
     }
 
+    /** Procent z kwoty, np. {@code percent(10)} to 10% tej kwoty. */
+    public Money percent(int percent) {
+        if (percent < 0 || percent > 100) {
+            throw new IllegalArgumentException("Procent spoza zakresu 0-100: " + percent);
+        }
+        return new Money(amount.multiply(BigDecimal.valueOf(percent)).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_EVEN));
+    }
+
+    public boolean isGreaterThan(Money other) {
+        return compareTo(other) > 0;
+    }
+
+    public Money min(Money other) {
+        return compareTo(other) <= 0 ? this : other;
+    }
+
     @Override
     public int compareTo(Money other) {
         return amount.compareTo(other.amount);
