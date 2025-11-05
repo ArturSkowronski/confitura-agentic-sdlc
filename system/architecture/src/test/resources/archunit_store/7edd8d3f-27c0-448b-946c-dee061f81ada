@@ -1,0 +1,3 @@
+Method <pl.confitura.shop.payments.infra.LegacySettlementReport.header(java.util.Date)> calls constructor <java.text.SimpleDateFormat.<init>(java.lang.String)> in (LegacySettlementReport.java:13)
+Method <pl.confitura.shop.payments.infra.LegacySettlementReport.header(java.util.Date)> calls method <java.text.SimpleDateFormat.format(java.util.Date)> in (LegacySettlementReport.java:13)
+Method <pl.confitura.shop.payments.infra.LegacySettlementReport.header(java.util.Date)> has parameter of type <java.util.Date> in (LegacySettlementReport.java:0)
