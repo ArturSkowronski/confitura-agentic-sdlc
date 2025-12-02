@@ -85,6 +85,12 @@
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-surefire-plugin</artifactId>
           <version>3.5.4</version>
+          <configuration>
+            <includes>
+              <include>**/*Test.java</include>
+              <include>**/*Properties.java</include>
+            </includes>
+          </configuration>
         </plugin>
         <!-- Mutacje odpalamy tylko na klasach zmienionych w PR:
              mvn org.pitest:pitest-maven:mutationCoverage -DtargetClasses=... -->
