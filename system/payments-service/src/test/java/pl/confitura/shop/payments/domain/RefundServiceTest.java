@@ -24,6 +24,16 @@ class RefundServiceTest {
     }
 
     @Test
+    void secondRefundIsIdempotent() {
+        repository.save(new Payment("p-2", "o-2", Money.of("10.00"), Money.ZERO, PaymentStatus.CAPTURED));
+
+        service.refundInFull("p-2");
+        Payment again = service.refundInFull("p-2");
+
+        assertEquals(PaymentStatus.REFUNDED, again.status());
+    }
+
+    @Test
     void rejectsUnknownPayment() {
         assertThrows(IllegalArgumentException.class, () -> service.refundInFull("nope"));
     }
