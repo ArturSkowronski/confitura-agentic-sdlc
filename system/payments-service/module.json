@@ -1,7 +1,7 @@
 {
   "name": "payments-service",
   "kind": "service",
-  "purpose": "Płatności kartą i zwroty.",
+  "purpose": "Płatności kartą i zwroty. Ścieżka krytyczna: każda zmiana wymaga akceptacji człowieka.",
   "owns": [
     "zwrot",
     "płatność",
@@ -18,6 +18,6 @@
     "payment",
     "refund"
   ],
-  "critical": false,
+  "critical": true,
   "owners": "@confitura-shop/payments"
 }
