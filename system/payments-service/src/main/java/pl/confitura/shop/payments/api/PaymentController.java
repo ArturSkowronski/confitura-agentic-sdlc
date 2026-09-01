@@ -5,7 +5,7 @@ import pl.confitura.shop.payments.domain.RefundService;
 
 public class PaymentController {
 
-    public record RefundResponse(String paymentId, String status) {
+    public record RefundResponse(String paymentId, String status, String refunded) {
     }
 
     private final RefundService refundService;
@@ -16,6 +16,6 @@ public class PaymentController {
 
     public RefundResponse refund(String paymentId) {
         Payment payment = refundService.refundInFull(paymentId);
-        return new RefundResponse(payment.id(), payment.status().name());
+        return new RefundResponse(payment.id(), payment.status().name(), payment.refunded().toString());
     }
 }
