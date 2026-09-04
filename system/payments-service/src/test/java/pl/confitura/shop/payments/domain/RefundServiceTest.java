@@ -20,7 +20,7 @@ class RefundServiceTest {
         Payment refunded = service.refundInFull("p-1");
 
         assertEquals(PaymentStatus.REFUNDED, refunded.status());
-        assertEquals(Money.of("99.00"), refunded.refunded());
+        assertEquals(Money.ZERO, refunded.refundable());
     }
 
     @Test

@@ -20,7 +20,7 @@ public class RefundService {
         if (payment.status() == PaymentStatus.REFUNDED) {
             return payment; // idempotentnie: drugi zwrot nic nie robi
         }
-        gateway.refund(payment.id(), payment.amount(), "refund-" + payment.id());
+        gateway.refund(payment.id(), payment.refundable(), "refund-" + payment.id());
         Payment refunded = new Payment(payment.id(), payment.orderId(), payment.amount(), payment.amount(), PaymentStatus.REFUNDED);
         payments.save(refunded);
         return refunded;
