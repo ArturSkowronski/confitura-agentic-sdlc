@@ -16,7 +16,7 @@ public class RefundService {
 
     public Payment refundInFull(String paymentId) {
         Payment payment = payments.findById(paymentId)
-                .orElseThrow(() -> new IllegalArgumentException("No payment " + paymentId));
+                .orElseThrow(() -> new IllegalArgumentException("Nie ma płatności " + paymentId));
         if (payment.status() == PaymentStatus.REFUNDED) {
             return payment; // idempotentnie: drugi zwrot nic nie robi
         }
