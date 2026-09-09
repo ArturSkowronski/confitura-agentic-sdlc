@@ -1,0 +1,10 @@
+{
+  "_comment": "Wyrocznia fabryki. Scenariusze robocze: ich nazwy wracają do agenta w pętli poprawek. Sejf (vault): tylko decyzja, zero informacji zwrotnej, porażka zapala andon. Zlecenie bez własnych scenariuszy nie idzie lights-out.",
+  "scenarios": [
+    {
+      "id": "regresja",
+      "always": true,
+      "title": "Regresja: zachowanie, które już działa"
+    }
+  ]
+}
