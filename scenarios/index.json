@@ -5,6 +5,23 @@
       "id": "regresja",
       "always": true,
       "title": "Regresja: zachowanie, które już działa"
+    },
+    {
+      "id": "rabat",
+      "match": [
+        "rabat"
+      ],
+      "title": "Rabat od progu 500 zł",
+      "owner": "Magda Wójcik (produkt)"
+    },
+    {
+      "id": "zwroty-czesciowe",
+      "match": [
+        "zwrot",
+        "zwroty"
+      ],
+      "title": "Zwroty częściowe",
+      "owner": "Magda Wójcik (produkt)"
     }
   ]
 }
