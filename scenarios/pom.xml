@@ -16,6 +16,7 @@
     <module>regresja</module>
     <module>rabat</module>
     <module>zwroty-czesciowe</module>
+    <module>sejf-zwroty</module>
   </modules>
 
   <properties>

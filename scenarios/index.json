@@ -22,6 +22,16 @@
       ],
       "title": "Zwroty częściowe",
       "owner": "Magda Wójcik (produkt)"
+    },
+    {
+      "id": "sejf-zwroty",
+      "match": [
+        "zwrot",
+        "zwroty"
+      ],
+      "vault": true,
+      "title": "Sejf: zwroty",
+      "owner": "Ola Kamińska (payments)"
     }
   ]
 }
