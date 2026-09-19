@@ -39,6 +39,7 @@ helm upgrade --install kagent-crds "$CHART_CRDS" --version "$KAGENT_VERSION" -n 
 helm upgrade --install kagent "$CHART" --version "$KAGENT_VERSION" -n kagent -f platforma/kagent/values.yaml >/dev/null
 LLM_MODEL="$LLM_MODEL" LLM_BASE_URL="$LLM_BASE_URL" envsubst < platforma/kagent/modelconfig.yaml | kubectl apply -f - >/dev/null
 kubectl apply -f platforma/kagent/agent-probny.yaml >/dev/null
+# Warsztat (lekcja 2) i resztę wdraża make setup, bo potrzebuje obrazów zbudowanych lokalnie.
 
 step "Kyverno $KYVERNO_CHART (polityka, tylko admission)"
 helm repo add kyverno https://kyverno.github.io/kyverno/ >/dev/null 2>&1 || true

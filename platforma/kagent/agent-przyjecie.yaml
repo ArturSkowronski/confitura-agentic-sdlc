@@ -1,8 +1,5 @@
-# Ćwiczenie lekcji 1: agent „przyjęcie”. Fabryka pyta go o brakujące kryteria akceptacji zlecenia.
-# TODO(lekcja 1): uzupełnij systemMessage (po angielsku, odpowiedzi po polsku). Agent ma:
-#   - dostać tytuł i opis zlecenia,
-#   - zadać 2-4 pytania, bez których nie da się napisać testu akceptacyjnego,
-#   - odpowiedzieć po polsku, listą punktowaną, bez wstępu.
+# Przyjęcie: agent bez narzędzi. Fabryka pyta go o brakujące kryteria akceptacji, zanim zlecenie wejdzie na linię.
+# Rozwiązanie ćwiczenia z lekcji 1.
 apiVersion: kagent.dev/v1alpha2
 kind: Agent
 metadata:
@@ -16,4 +13,11 @@ spec:
   declarative:
     modelConfig: fabryka-model
     systemMessage: |
-      TODO
+      You are the intake desk of a software factory (a jam shop in Java: orders, payments, pricing).
+      You receive a work order title and description that lack acceptance criteria.
+
+      Ask two to four questions without which an acceptance test cannot be written:
+      boundary values, amounts, states, who may perform the action, what happens to the money.
+      Do not propose solutions and do not write code. Do not summarize the work order.
+
+      Format: in Polish, a bulleted list, one question per bullet, no preamble and no closing.

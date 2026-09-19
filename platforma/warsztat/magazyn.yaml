@@ -1,0 +1,24 @@
+# Magazyn: pod, przez który wkładasz snapshot repo do klastra (make zlecenie) i odbierasz wyniki (make odbierz).
+# Zero serwera git, zero tokenów: `git archive | kubectl exec -i ... tar -x`.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: magazyn
+  namespace: fabryka
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: magazyn}}
+  template:
+    metadata: {labels: {app: magazyn}}
+    spec:
+      containers:
+        - name: magazyn
+          image: fabryka-toolbox:lekcja
+          imagePullPolicy: IfNotPresent
+          command: ["sleep", "infinity"]
+          volumeMounts: [{name: work, mountPath: /work}]
+          resources:
+            requests: {cpu: 10m, memory: 32Mi}
+      volumes:
+        - name: work
+          persistentVolumeClaim: {claimName: warsztat}

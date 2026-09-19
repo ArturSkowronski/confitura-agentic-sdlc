@@ -20,6 +20,7 @@ import argparse
 import json
 import os
 import sys
+import time
 import urllib.error
 import urllib.request
 import uuid
@@ -40,8 +41,22 @@ def card(agent: str, namespace: str | None = None, timeout: int = 10) -> dict:
 
 
 def send(agent: str, text: str, *, namespace: str | None = None, session: str | None = None,
-         timeout: int = 600) -> str:
-    """Jedno pytanie, jedna odpowiedź. `session` (contextId) pozwala kontynuować rozmowę."""
+         timeout: int = 600, retries: int = 4) -> str:
+    """Jedno pytanie, jedna odpowiedź. `session` (contextId) pozwala kontynuować rozmowę.
+
+    Świeżo wdrożony agent bywa `Ready` chwilę przed tym, jak jego pod przyjmuje połączenia,
+    więc „connection refused” od kontrolera ponawiamy kilka razy."""
+    for attempt in range(retries):
+        try:
+            return _send_once(agent, text, namespace, session, timeout)
+        except RuntimeError as err:
+            if "connection refused" not in str(err) or attempt == retries - 1:
+                raise
+            time.sleep(3 * (attempt + 1))
+    raise RuntimeError("nieosiągalne")
+
+
+def _send_once(agent: str, text: str, namespace: str | None, session: str | None, timeout: int) -> str:
     message = {"kind": "message", "role": "user", "messageId": str(uuid.uuid4()),
                "parts": [{"kind": "text", "text": text}]}
     if session:
