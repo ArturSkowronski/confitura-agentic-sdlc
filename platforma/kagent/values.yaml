@@ -1,0 +1,29 @@
+# Profil kagent na warsztat: kontroler, UI, kmcp (CRD MCPServer) i Postgres. Bez agentów przykładowych.
+# Instalacja: KAGENT_HELM_VERSION=0.10.1 w scripts/klaster.sh.
+providers:
+  default: openAI
+  openAI:
+    provider: OpenAI
+    model: gpt-5-mini
+    apiKeySecretRef: kagent-openai
+    apiKeySecretKey: OPENAI_API_KEY
+otel:
+  tracing:
+    enabled: true
+    exporter:
+      otlp:
+        endpoint: http://jaeger.fabryka.svc:4317
+        protocol: grpc
+        insecure: true
+kagent-tools: {enabled: false}
+k8s-agent: {enabled: false}
+kgateway-agent: {enabled: false}
+istio-agent: {enabled: false}
+promql-agent: {enabled: false}
+observability-agent: {enabled: false}
+argo-rollouts-agent: {enabled: false}
+helm-agent: {enabled: false}
+cilium-policy-agent: {enabled: false}
+cilium-manager-agent: {enabled: false}
+cilium-debug-agent: {enabled: false}
+grafana-mcp: {enabled: false}

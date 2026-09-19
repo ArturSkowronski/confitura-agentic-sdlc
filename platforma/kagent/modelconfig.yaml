@@ -1,0 +1,15 @@
+# Model fabryki. Jedna konfiguracja dla wszystkich agentów: zmieniasz tu, nie w każdym agencie.
+# Klucz trafia do Secretu `fabryka-llm` przez `make klucz`. Bez klucza agenci wstają, ale nie odpowiadają
+# (linia działa wtedy w trybie replay).
+apiVersion: kagent.dev/v1alpha2
+kind: ModelConfig
+metadata:
+  name: fabryka-model
+  namespace: fabryka
+spec:
+  provider: OpenAI
+  model: ${LLM_MODEL}
+  apiKeySecret: fabryka-llm
+  apiKeySecretKey: LLM_API_KEY
+  openAI:
+    baseUrl: ${LLM_BASE_URL}

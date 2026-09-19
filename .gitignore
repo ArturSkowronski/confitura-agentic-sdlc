@@ -1,6 +1,7 @@
-.sdlc/
-target/
-.idea/
 *.iml
 .DS_Store
+.idea/
 .jqwik-database
+.sdlc/
+platforma/**/cosign.key
+target/

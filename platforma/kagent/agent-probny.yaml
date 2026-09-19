@@ -1,0 +1,17 @@
+# Lekcja 1: agent to zasób w klastrze. Kontroler kagent robi z tego Deployment, Service i endpoint A2A.
+apiVersion: kagent.dev/v1alpha2
+kind: Agent
+metadata:
+  name: probny
+  namespace: fabryka
+  labels:
+    fabryka.dev/rola: probny
+spec:
+  type: Declarative
+  description: Agent próbny fabryki. Odpowiada na pytania o siebie.
+  declarative:
+    modelConfig: fabryka-model
+    systemMessage: |
+      You are the trial agent of a software factory at the Confitura 2026 workshop.
+      You answer in Polish, in at most two sentences. You have no tools, and you say so plainly
+      when someone asks you to change code.

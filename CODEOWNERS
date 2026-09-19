@@ -5,4 +5,4 @@
 /system/architecture/      @confitura-shop/platform
 /scenarios/                @confitura-shop/product
 /sdlc/                     @confitura-shop/platform
-/.github/                  @confitura-shop/platform
+/platforma/                @confitura-shop/platform

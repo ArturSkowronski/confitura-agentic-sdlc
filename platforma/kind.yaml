@@ -1,0 +1,15 @@
+# Klaster fabryki: jeden węzeł, porty UI wystawione na localhost bez port-forward.
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: fabryka
+nodes:
+  - role: control-plane
+    extraPortMappings:
+      - containerPort: 30746   # Argo Workflows UI (hala)
+        hostPort: 2746
+      - containerPort: 30083   # kagent controller: A2A i API
+        hostPort: 8083
+      - containerPort: 30082   # kagent dashboard
+        hostPort: 8082
+      - containerPort: 30686   # Jaeger UI (ślady)
+        hostPort: 16686

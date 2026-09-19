@@ -1,0 +1,19 @@
+# Ćwiczenie lekcji 1: agent „przyjęcie”. Fabryka pyta go o brakujące kryteria akceptacji zlecenia.
+# TODO(lekcja 1): uzupełnij systemMessage (po angielsku, odpowiedzi po polsku). Agent ma:
+#   - dostać tytuł i opis zlecenia,
+#   - zadać 2-4 pytania, bez których nie da się napisać testu akceptacyjnego,
+#   - odpowiedzieć po polsku, listą punktowaną, bez wstępu.
+apiVersion: kagent.dev/v1alpha2
+kind: Agent
+metadata:
+  name: przyjecie
+  namespace: fabryka
+  labels:
+    fabryka.dev/rola: przyjecie
+spec:
+  type: Declarative
+  description: Przyjęcie zlecenia. Zadaje pytania o brakujące kryteria akceptacji.
+  declarative:
+    modelConfig: fabryka-model
+    systemMessage: |
+      TODO
