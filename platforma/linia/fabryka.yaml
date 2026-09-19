@@ -1,5 +1,6 @@
-# Linia produkcyjna fabryki (lekcja 5). Jeden przebieg = jedna próba jednego zlecenia:
+# Linia produkcyjna fabryki (lekcja 6). Jeden przebieg = jedna próba jednego zlecenia:
 #   📥 przyjęcie (spec, routing) → 🤖 wykonawca (kagent przez A2A albo replay) → 📦 zmiana (gałąź + łatka w /work/out)
+#   → 🧱 kontrola jakości (build+ArchUnit+osłabianie testów ‖ sekrety, potem mutacje) → wynik
 # Uruchomienie: make zlecenie Z=rabat [AGENT=replay]. Graf i logi: hala (Argo UI).
 apiVersion: argoproj.io/v1alpha1
 kind: WorkflowTemplate
@@ -37,6 +38,82 @@ spec:
             template: zmiana
             when: "{{steps.przyjecie.outputs.parameters.accepted}} == true"
             arguments: {parameters: [{name: zlecenie, value: "{{inputs.parameters.zlecenie}}"}, {name: agent, value: "{{inputs.parameters.agent}}"}, {name: proba, value: "{{inputs.parameters.proba}}"}]}
+        - - name: kontrola
+            template: kontrola
+            when: "{{steps.przyjecie.outputs.parameters.accepted}} == true"
+            arguments: {parameters: [{name: zlecenie, value: "{{inputs.parameters.zlecenie}}"}, {name: proba, value: "{{inputs.parameters.proba}}"}]}
+        - - name: wynik
+            template: wynik
+            when: "{{steps.przyjecie.outputs.parameters.accepted}} == true"
+            arguments: {parameters: [{name: zlecenie, value: "{{inputs.parameters.zlecenie}}"}, {name: proba, value: "{{inputs.parameters.proba}}"}]}
+
+    # Kontrola jakości: deterministyczna, bez modelu, poza zasięgiem agenta. Czerwona bramka nie zatrzymuje
+    # pozostałych: fabryka chce pełny obraz, zanim zdecyduje. Mutacje po buildzie (ten sam katalog target/).
+    - name: kontrola
+      inputs:
+        parameters: [{name: zlecenie}, {name: proba}]
+      dag:
+        tasks:
+          - name: build
+            template: krok
+            continueOn: {failed: true}
+            arguments:
+              parameters:
+                - {name: zlecenie, value: "{{inputs.parameters.zlecenie}}"}
+                - {name: proba, value: "{{inputs.parameters.proba}}"}
+                - name: skrypt
+                  value: |
+                    set +e; (cd system && mvn -B verify > ../.sdlc/mvn.log 2>&1); code=$?; set -e
+                    tail -n 30 .sdlc/mvn.log
+                    python3 sdlc/gates.py report --log .sdlc/mvn.log --exit-code $code > "$OUT/kontrola-1-build.md"
+                    set +e; python3 sdlc/gates.py weakening --base main --head HEAD > "$OUT/kontrola-2-oslabianie.md"; weak=$?; set -e
+                    cat "$OUT/kontrola-1-build.md" "$OUT/kontrola-2-oslabianie.md"
+                    echo "$code" > "$OUT/kontrola-1-build.exit"; echo "$weak" > "$OUT/kontrola-2-oslabianie.exit"
+                    exit $((code + weak))
+          - name: sekrety
+            template: krok
+            continueOn: {failed: true}
+            arguments:
+              parameters:
+                - {name: zlecenie, value: "{{inputs.parameters.zlecenie}}"}
+                - {name: proba, value: "{{inputs.parameters.proba}}"}
+                - name: skrypt
+                  value: |
+                    set +e; gitleaks git --log-opts="main..HEAD" --redact --no-banner --no-color . > .sdlc/gitleaks.log 2>&1; code=$?; set -e
+                    cat .sdlc/gitleaks.log
+                    if [ $code -eq 0 ]; then printf '### 🔑 Sekrety: ✅ gitleaks nic nie znalazł\n' > "$OUT/kontrola-3-sekrety.md"
+                    else printf '### 🔑 Sekrety: ❌ gitleaks znalazł sekret w commitach zmiany\n' > "$OUT/kontrola-3-sekrety.md"; fi
+                    echo "$code" > "$OUT/kontrola-3-sekrety.exit"; exit $code
+          - name: mutacje
+            template: krok
+            dependencies: [build]
+            continueOn: {failed: true}
+            arguments:
+              parameters:
+                - {name: zlecenie, value: "{{inputs.parameters.zlecenie}}"}
+                - {name: proba, value: "{{inputs.parameters.proba}}"}
+                - name: skrypt
+                  value: |
+                    set +e; python3 sdlc/mutation.py --base main --head HEAD --threshold 60 > .sdlc/pit.log 2>&1; code=$?; set -e
+                    sed -n '/^### 🧬/,$p' .sdlc/pit.log > "$OUT/kontrola-4-mutacje.md"
+                    [ -s "$OUT/kontrola-4-mutacje.md" ] || { tail -n 20 .sdlc/pit.log; printf '### 🧬 Mutacje: ⚠️ PIT nie dał wyniku\n' > "$OUT/kontrola-4-mutacje.md"; }
+                    cat "$OUT/kontrola-4-mutacje.md"; echo "$code" > "$OUT/kontrola-4-mutacje.exit"; exit $code
+
+    - name: wynik
+      inputs:
+        parameters: [{name: zlecenie}, {name: proba}]
+      steps:
+        - - name: run
+            template: krok
+            arguments:
+              parameters:
+                - {name: zlecenie, value: "{{inputs.parameters.zlecenie}}"}
+                - {name: proba, value: "{{inputs.parameters.proba}}"}
+                - name: skrypt
+                  value: |
+                    red=0; for f in "$OUT"/kontrola-*.exit; do c=$(cat "$f"); n=$(basename "$f" .exit); [ "$c" = "0" ] && echo "✅ $n" || { echo "❌ $n (exit $c)"; red=1; }; done
+                    cat "$OUT"/kontrola-*.md > "$OUT/kontrola.md"
+                    [ $red = 0 ] && echo "Kontrola jakości: zielono" || { echo "Kontrola jakości: czerwono. Raporty: $OUT/kontrola.md"; exit 1; }
 
     # Każdy krok to ten sam obraz i ten sam dysk. Różni się tylko skrypt.
     - name: krok
