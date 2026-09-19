@@ -40,8 +40,8 @@ jest w następnym commicie. Zostałeś w tyle? `make lekcja N=4` ustawia gałą�
 | 5 | [Linia](warsztat/lekcja-05-linia.md) | Linia to wersjonowany graf, nie skrypt |
 | 6 | [Kontrola jakości](warsztat/lekcja-06-kontrola.md) | Zielony build dowodzi tylko, że model zgadza się sam ze sobą |
 | 7 | [Wyrocznia](warsztat/lekcja-07-wyrocznia.md) | Holdout zużywa się z każdym użyciem |
-| 8 | Ryzyko, review, poprawki | Każda poprawka przesuwa agenta od wymagania w stronę bramki |
-| 9 | Światło, WIP i polityka | Człowiek to węzeł z rolą; linię rysuje plik |
+| 8 | [Ryzyko, review, poprawki](warsztat/lekcja-08-review.md) | Każda poprawka przesuwa agenta od wymagania w stronę bramki |
+| 9 | [Światło, WIP i polityka](warsztat/lekcja-09-polityka.md) | Człowiek to węzeł z rolą; linię rysuje plik |
 | 10 | Ślad i hala | Agent może proponować prawa, ale nie może ich uchwalać |
 
 ## Co jest w środku

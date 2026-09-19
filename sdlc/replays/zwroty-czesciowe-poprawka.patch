@@ -1,0 +1,110 @@
+From a5b66ce2c404df7493bf27f91b9ff25f43545a8b Mon Sep 17 00:00:00 2001
+From: "agent[bot]" <agent@fabryka>
+Date: Sat, 19 Sep 2026 12:44:36 +0000
+Subject: [PATCH] =?UTF-8?q?agent(kagent):=20Zwroty=20cz=C4=99=C5=9Bciowe?=
+ =?UTF-8?q?=20(pr=C3=B3ba=201)?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+---
+ .../shop/payments/api/PaymentController.java  |  7 ++++++
+ .../shop/payments/domain/RefundService.java   | 23 +++++++++++++++++++
+ .../payments/domain/RefundServiceTest.java    | 22 ++++++++++++++++++
+ 3 files changed, 52 insertions(+)
+
+diff --git a/system/payments-service/src/main/java/pl/confitura/shop/payments/api/PaymentController.java b/system/payments-service/src/main/java/pl/confitura/shop/payments/api/PaymentController.java
+index f477938..787ed94 100644
+--- a/system/payments-service/src/main/java/pl/confitura/shop/payments/api/PaymentController.java
++++ b/system/payments-service/src/main/java/pl/confitura/shop/payments/api/PaymentController.java
+@@ -2,6 +2,7 @@ package pl.confitura.shop.payments.api;
+ 
+ import pl.confitura.shop.payments.domain.Payment;
+ import pl.confitura.shop.payments.domain.RefundService;
++import pl.confitura.shop.pricing.Money;
+ 
+ public class PaymentController {
+ 
+@@ -18,4 +19,10 @@ public class PaymentController {
+         Payment payment = refundService.refundInFull(paymentId);
+         return new RefundResponse(payment.id(), payment.status().name(), payment.refunded().toString());
+     }
++
++    public RefundResponse refundPartially(String paymentId, String amount) {
++        Money money = Money.of(amount);
++        Payment payment = refundService.refundPartially(paymentId, money);
++        return new RefundResponse(payment.id(), payment.status().name(), payment.refunded().toString());
++    }
+ }
+diff --git a/system/payments-service/src/main/java/pl/confitura/shop/payments/domain/RefundService.java b/system/payments-service/src/main/java/pl/confitura/shop/payments/domain/RefundService.java
+index b35f380..74773ff 100644
+--- a/system/payments-service/src/main/java/pl/confitura/shop/payments/domain/RefundService.java
++++ b/system/payments-service/src/main/java/pl/confitura/shop/payments/domain/RefundService.java
+@@ -1,5 +1,8 @@
+ package pl.confitura.shop.payments.domain;
+ 
++import java.util.UUID;
++import pl.confitura.shop.pricing.Money;
++
+ /**
+  * Zwroty. Na razie tylko pełne: zwroty częściowe wyłączyliśmy po incydencie
+  * INC-2026-03-14 (podwójny zwrot przy ponowieniu żądania), zob. ops/incidents.
+@@ -25,4 +28,24 @@ public class RefundService {
+         payments.save(refunded);
+         return refunded;
+     }
++
++    /**
++     * Wykonuje częściowy zwrot. Zwracana płatność ma zaktualizowane pole refunded.
++     */
++    public Payment refundPartially(String paymentId, Money amount) {
++        Payment payment = payments.findById(paymentId)
++                .orElseThrow(() -> new IllegalArgumentException("Nie ma płatności " + paymentId));
++        if (amount.isGreaterThan(payment.refundable())) {
++            throw new IllegalArgumentException("Zbyt duży zwrot: " + amount + ", dostępne: " + payment.refundable());
++        }
++        // każdy wywołanie do operatora ma własny klucz idempotencji
++        String idempotencyKey = "partial-refund-" + payment.id() + "-" + UUID.randomUUID();
++        gateway.refund(payment.id(), amount, idempotencyKey);
++
++        Money newRefunded = payment.refunded().plus(amount);
++        PaymentStatus newStatus = newRefunded.compareTo(payment.amount()) == 0 ? PaymentStatus.REFUNDED : payment.status();
++        Payment updated = new Payment(payment.id(), payment.orderId(), payment.amount(), newRefunded, newStatus);
++        payments.save(updated);
++        return updated;
++    }
+ }
+diff --git a/system/payments-service/src/test/java/pl/confitura/shop/payments/domain/RefundServiceTest.java b/system/payments-service/src/test/java/pl/confitura/shop/payments/domain/RefundServiceTest.java
+index 14bf5de..381ef96 100644
+--- a/system/payments-service/src/test/java/pl/confitura/shop/payments/domain/RefundServiceTest.java
++++ b/system/payments-service/src/test/java/pl/confitura/shop/payments/domain/RefundServiceTest.java
+@@ -37,4 +37,26 @@ class RefundServiceTest {
+     void rejectsUnknownPayment() {
+         assertThrows(IllegalArgumentException.class, () -> service.refundInFull("nope"));
+     }
++
++    @Test
++    void partialRefundsAreSupportedAndAccumulate() {
++        repository.save(new Payment("p-3", "o-3", Money.of("90.00"), Money.ZERO, PaymentStatus.CAPTURED));
++
++        Payment r1 = service.refundPartially("p-3", Money.of("30.00"));
++        assertEquals(Money.of("30.00"), r1.refunded());
++
++        Payment r2 = service.refundPartially("p-3", Money.of("30.00"));
++        assertEquals(Money.of("60.00"), r2.refunded());
++
++        Payment r3 = service.refundPartially("p-3", Money.of("30.00"));
++        assertEquals(Money.of("90.00"), r3.refunded());
++        assertEquals(PaymentStatus.REFUNDED, r3.status());
++    }
++
++    @Test
++    void cannotRefundMoreThanAvailable() {
++        repository.save(new Payment("p-4", "o-4", Money.of("50.00"), Money.of("30.00"), PaymentStatus.CAPTURED));
++
++        assertThrows(IllegalArgumentException.class, () -> service.refundPartially("p-4", Money.of("21.00")));
++    }
+ }
+-- 
+2.43.0
+

@@ -1,6 +1,6 @@
-# Linia produkcyjna fabryki (lekcja 7). Jeden przebieg = jedna próba jednego zlecenia:
+# Linia produkcyjna fabryki (lekcja 8). Jeden przebieg = jedno zlecenie, próby jako rekurencja szablonu `linia`:
 #   📥 przyjęcie (spec, routing) → 🤖 wykonawca (kagent przez A2A albo replay) → 📦 zmiana (gałąź + łatka w /work/out)
-#   → 🧱 kontrola jakości (build+ArchUnit+osłabianie testów ‖ sekrety, potem 🎯 wyrocznia, potem mutacje) → wynik
+#   → 🧱 kontrola jakości ‖ 🔎 ryzyko i review → ⚖️ decyzja: lights-out | 👤 człowiek | 🔁 poprawka (próba+1) | 🚨 andon
 # Uruchomienie: make zlecenie Z=rabat [AGENT=replay]. Graf i logi: hala (Argo UI).
 apiVersion: argoproj.io/v1alpha1
 kind: WorkflowTemplate
@@ -42,10 +42,27 @@ spec:
             template: kontrola
             when: "{{steps.przyjecie.outputs.parameters.accepted}} == true"
             arguments: {parameters: [{name: zlecenie, value: "{{inputs.parameters.zlecenie}}"}, {name: proba, value: "{{inputs.parameters.proba}}"}]}
-        - - name: wynik
-            template: wynik
+          - name: review
+            template: review
             when: "{{steps.przyjecie.outputs.parameters.accepted}} == true"
             arguments: {parameters: [{name: zlecenie, value: "{{inputs.parameters.zlecenie}}"}, {name: proba, value: "{{inputs.parameters.proba}}"}]}
+        - - name: decyzja
+            template: decyzja
+            when: "{{steps.przyjecie.outputs.parameters.accepted}} == true"
+            arguments: {parameters: [{name: zlecenie, value: "{{inputs.parameters.zlecenie}}"}, {name: proba, value: "{{inputs.parameters.proba}}"}]}
+        - - name: czlowiek
+            template: czlowiek
+            when: "{{steps.decyzja.outputs.parameters.decyzja}} == człowiek"
+            arguments: {parameters: [{name: zlecenie, value: "{{inputs.parameters.zlecenie}}"}, {name: proba, value: "{{inputs.parameters.proba}}"}]}
+        - - name: wynik
+            template: wynik
+            when: "{{steps.przyjecie.outputs.parameters.accepted}} == true && {{steps.decyzja.outputs.parameters.decyzja}} != poprawka"
+            arguments: {parameters: [{name: zlecenie, value: "{{inputs.parameters.zlecenie}}"}, {name: proba, value: "{{inputs.parameters.proba}}"}, {name: decyzja, value: "{{steps.decyzja.outputs.parameters.decyzja}}"}]}
+          # Poprawka = ta sama linia, próba + 1. Rekurencja szablonu zamiast osobnego przebiegu: cała historia w jednym grafie.
+          - name: poprawka
+            template: linia
+            when: "{{steps.decyzja.outputs.parameters.decyzja}} == poprawka"
+            arguments: {parameters: [{name: zlecenie, value: "{{inputs.parameters.zlecenie}}"}, {name: agent, value: "{{inputs.parameters.agent}}"}, {name: proba, value: "{{=asInt(inputs.parameters.proba) + 1}}"}, {name: modul, value: "{{inputs.parameters.modul}}"}]}
 
     # Kontrola jakości: deterministyczna, bez modelu, poza zasięgiem agenta. Czerwona bramka nie zatrzymuje
     # pozostałych: fabryka chce pełny obraz, zanim zdecyduje. Mutacje po buildzie (ten sam katalog target/).
@@ -112,12 +129,67 @@ spec:
                 - {name: proba, value: "{{inputs.parameters.proba}}"}
                 - name: skrypt
                   value: |
-                    set +e; python3 sdlc/mutation.py --base main --head HEAD --threshold 60 > .sdlc/pit.log 2>&1; code=$?; set -e
+                    set +e; python3 sdlc/mutation.py --base main --head HEAD --threshold "$(jq -r '.gates.mutation_threshold // 60' sdlc/policy.json)" > .sdlc/pit.log 2>&1; code=$?; set -e
                     sed -n '/^### 🧬/,$p' .sdlc/pit.log > "$OUT/kontrola-4-mutacje.md"
                     [ -s "$OUT/kontrola-4-mutacje.md" ] || { tail -n 20 .sdlc/pit.log; printf '### 🧬 Mutacje: ⚠️ PIT nie dał wyniku\n' > "$OUT/kontrola-4-mutacje.md"; }
                     cat "$OUT/kontrola-4-mutacje.md"; echo "$code" > "$OUT/kontrola-4-mutacje.exit"; exit $code
 
-    - name: wynik
+    # Ryzyko liczy kod, nie model (sdlc/risk.py). Od poziomu zależy, czy pytamy recenzenta i czy zmiana czeka na człowieka.
+    - name: review
+      inputs:
+        parameters: [{name: zlecenie}, {name: proba}]
+      steps:
+        - - name: run
+            template: krok
+            continueOn: {failed: true}
+            arguments:
+              parameters:
+                - {name: zlecenie, value: "{{inputs.parameters.zlecenie}}"}
+                - {name: proba, value: "{{inputs.parameters.proba}}"}
+                - name: skrypt
+                  value: |
+                    mkdir -p /tmp/outputs; title=$(jq -r .title .sdlc/zlecenie.json)
+                    python3 sdlc/risk.py --base main --head HEAD --agent --attempt "$ATTEMPT" --work-order "$title" > "$OUT/review-1-ryzyko.md"
+                    cp .sdlc/risk.json "$OUT/ryzyko.json"; cp /tmp/outputs/needs_human "$OUT/needs_human"; cat "$OUT/review-1-ryzyko.md"
+                    set +e; python3 sdlc/review.py --base main --head HEAD --fail-on-blocking > /dev/null; code=$?; set -e
+                    cp .sdlc/review.md "$OUT/review-2-review.md"; cp .sdlc/review.sarif "$OUT/review.sarif" 2>/dev/null || true
+                    cat "$OUT/review-2-review.md"; echo "$code" > "$OUT/review.exit"; exit $code
+
+    - name: decyzja
+      inputs:
+        parameters: [{name: zlecenie}, {name: proba}]
+      outputs:
+        parameters:
+          - name: decyzja
+            valueFrom: {parameter: "{{steps.run.outputs.parameters.decyzja}}"}
+      steps:
+        - - name: run
+            template: krok-decyzja
+            arguments:
+              parameters:
+                - {name: zlecenie, value: "{{inputs.parameters.zlecenie}}"}
+                - {name: proba, value: "{{inputs.parameters.proba}}"}
+                - name: skrypt
+                  value: |
+                    max=$(jq -r '.line.max_attempts' sdlc/policy.json)
+                    red=0; for f in "$OUT"/kontrola-*.exit; do [ "$(cat "$f")" = "0" ] || red=1; done
+                    review=$(cat "$OUT/review.exit" 2>/dev/null || echo 1); needs_human=$(cat "$OUT/needs_human" 2>/dev/null || echo true)
+                    vault=$(jq -r '.vault // "brak"' "$OUT/wyrocznia.json" 2>/dev/null || echo brak)
+                    reason=""
+                    # Review blokujący eskaluje do człowieka, nie do poprawki: model radzi, człowiek decyduje.
+                    # Poprawkę wymuszają tylko bramki deterministyczne (kontrola jakości).
+                    [ "$review" = "0" ] || needs_human=true
+                    if [ $red = 0 ]; then
+                      if [ "$needs_human" = "true" ]; then decyzja="człowiek"; else decyzja="lights-out"; fi
+                    elif [ "$vault" = "nie przeszedł" ]; then decyzja="andon"; reason="Sejf nie przeszedł (poprawka pod sejf zamieniłaby go w zbiór treningowy)"
+                    elif [ "$ATTEMPT" -ge "$max" ]; then decyzja="andon"; reason="$ATTEMPT próby bez przejścia kontroli jakości"
+                    else decyzja="poprawka"; fi
+                    echo "Decyzja: $decyzja ${reason:+($reason)}"; echo "$decyzja" > /tmp/outputs/decyzja
+                    printf '%s\n' "$decyzja" > "$OUT/decyzja"; [ -z "$reason" ] || printf '%s\n' "$reason" > "$OUT/andon.md"
+                    if [ "$decyzja" = "poprawka" ]; then python3 sdlc/factory.py feedback > "$OUT/feedback.md"; echo "--- raport dla agenta ---"; cat "$OUT/feedback.md"; fi
+
+    # Lekcja 8: fabryka wie, że tu powinien stanąć człowiek, ale jeszcze nie czeka. Lekcja 9 dokłada suspend.
+    - name: czlowiek
       inputs:
         parameters: [{name: zlecenie}, {name: proba}]
       steps:
@@ -129,9 +201,53 @@ spec:
                 - {name: proba, value: "{{inputs.parameters.proba}}"}
                 - name: skrypt
                   value: |
-                    red=0; for f in "$OUT"/kontrola-*.exit; do c=$(cat "$f"); n=$(basename "$f" .exit); [ "$c" = "0" ] && echo "✅ $n" || { echo "❌ $n (exit $c)"; red=1; }; done
-                    cat "$OUT"/kontrola-*.md > "$OUT/kontrola.md"
-                    [ $red = 0 ] && echo "Kontrola jakości: zielono" || { echo "Kontrola jakości: czerwono. Raporty: $OUT/kontrola.md"; exit 1; }
+                    printf '### 👤 Akceptacja: ⚠️ brak\n\nRyzyko wymaga człowieka, a przebieg nie czekał. Dodaj suspend do kroku czlowiek (lekcja 9).\n' > "$OUT/czlowiek.md"
+                    echo "human.approval_missing" > "$OUT/czlowiek"; cat "$OUT/czlowiek.md"
+
+    - name: wynik
+      inputs:
+        parameters: [{name: zlecenie}, {name: proba}, {name: decyzja}]
+      steps:
+        - - name: run
+            template: krok
+            arguments:
+              parameters:
+                - {name: zlecenie, value: "{{inputs.parameters.zlecenie}}"}
+                - {name: proba, value: "{{inputs.parameters.proba}}"}
+                - name: skrypt
+                  value: |
+                    decyzja="{{inputs.parameters.decyzja}}"
+                    for f in "$OUT"/kontrola-*.exit; do c=$(cat "$f"); n=$(basename "$f" .exit); [ "$c" = "0" ] && echo "✅ $n" || echo "❌ $n (exit $c)"; done
+                    [ "$(cat "$OUT/review.exit" 2>/dev/null)" = "0" ] && echo "✅ review" || echo "🚫 review: znaleziska blokujące (do decyzji człowieka)"
+                    cat "$OUT"/kontrola-*.md "$OUT"/review-*.md "$OUT"/czlowiek.md > "$OUT/raport.md" 2>/dev/null || true
+                    case "$decyzja" in
+                      lights-out) echo "🌑 Przyjęte bez człowieka (lights-out). Łatka: $OUT/zmiana.patch" ;;
+                      człowiek)   [ "$(cat "$OUT/czlowiek" 2>/dev/null)" = "human.approval_missing" ] && echo "👤 Wymaga człowieka, a przebieg nie czekał (lekcja 9)" || echo "👤 Przyjęte przez człowieka" ;;
+                      andon)      echo "🚨 Andon: linia zatrzymana. $(cat "$OUT/andon.md" 2>/dev/null). Fabryka nie zgaduje dalej: człowiek decyduje."; exit 1 ;;
+                    esac
+
+    - name: krok-decyzja
+      inputs:
+        parameters: [{name: skrypt}, {name: zlecenie}, {name: agent, value: kagent}, {name: proba, value: "1"}]
+      outputs:
+        parameters:
+          - name: decyzja
+            valueFrom: {path: /tmp/outputs/decyzja, default: "andon"}
+      container:
+        image: fabryka-toolbox:lekcja
+        imagePullPolicy: IfNotPresent
+        command: [bash, -eo, pipefail, -c]
+        args: ["mkdir -p /tmp/outputs; {{inputs.parameters.skrypt}}"]
+        workingDir: /work/repo
+        env:
+          - {name: ZLECENIE, value: "{{inputs.parameters.zlecenie}}"}
+          - {name: AGENT, value: "{{inputs.parameters.agent}}"}
+          - {name: ATTEMPT, value: "{{inputs.parameters.proba}}"}
+          - {name: FABRYKA_RUN, value: "{{workflow.name}}"}
+          - {name: OUT, value: "/work/out/{{inputs.parameters.zlecenie}}/proba-{{inputs.parameters.proba}}"}
+          - {name: OUTPUTS_DIR, value: /tmp/outputs}
+          - {name: PYTHONDONTWRITEBYTECODE, value: "1"}
+        volumeMounts: [{name: work, mountPath: /work}]
 
     # Każdy krok to ten sam obraz i ten sam dysk. Różni się tylko skrypt.
     - name: krok
@@ -175,6 +291,7 @@ spec:
                     git config user.name "agent[bot]"; git config user.email "agent@fabryka"
                     if [ "$ATTEMPT" = "1" ]; then git checkout -q main && git switch -q -C "agent/$ZLECENIE"; else git checkout -q "agent/$ZLECENIE"; fi
                     rm -rf .sdlc && mkdir -p .sdlc "$OUT" && : > /work/events.jsonl
+                    if [ "$ATTEMPT" != "1" ]; then cp "/work/out/$ZLECENIE/proba-$((ATTEMPT - 1))/feedback.md" .sdlc/feedback.md && echo "raport z próby $((ATTEMPT - 1)) dołączony"; fi
                     python3 sdlc/zlecenia.py "$ZLECENIE" > .sdlc/zlecenie.json
                     echo "zlecenie: $(jq -r .title .sdlc/zlecenie.json) (próba $ATTEMPT, gałąź $(git branch --show-current))"
 
