@@ -23,9 +23,14 @@ kubectl create namespace argo --dry-run=client -o yaml | kubectl apply -f - >/de
 kubectl create namespace kagent --dry-run=client -o yaml | kubectl apply -f - >/dev/null
 
 step "Argo Workflows $ARGO_VERSION (linia)"
-# CRD Argo mają adnotacje > 256 KiB, więc apply musi być server-side.
-kubectl apply --server-side -n argo \
-  -f "https://github.com/argoproj/argo-workflows/releases/download/$ARGO_VERSION/quick-start-minimal.yaml" >/dev/null
+# CRD Argo mają adnotacje > 256 KiB, więc apply musi być server-side. Bez repozytorium artefaktów: wyniki idą na dysk /work.
+kubectl apply --server-side --force-conflicts -n argo \
+  -f "https://github.com/argoproj/argo-workflows/releases/download/$ARGO_VERSION/install.yaml" >/dev/null
+kubectl apply --server-side --force-conflicts -f platforma/argo/controller-configmap.yaml >/dev/null
+# Hala bez logowania i po HTTP: to klaster na Twoim laptopie.
+kubectl patch deploy argo-server -n argo --type=json -p '[
+  {"op":"replace","path":"/spec/template/spec/containers/0/args","value":["server","--auth-mode=server","--secure=false"]},
+  {"op":"replace","path":"/spec/template/spec/containers/0/readinessProbe/httpGet/scheme","value":"HTTP"}]' >/dev/null
 
 step "kagent $KAGENT_VERSION (agenci)"
 # Sekret z kluczem musi istnieć, zanim wstaną agenci; bez klucza dostają wartość „brak” i linia działa w trybie replay.
@@ -63,7 +68,7 @@ kubectl wait --for=condition=Ready agent/probny -n fabryka --timeout=180s >/dev/
 cat <<MSG
 
 Klaster stoi. Adresy na localhost:
-  hala (Argo Workflows)   https://localhost:2746
+  hala (Argo Workflows)   http://localhost:2746
   kagent dashboard        http://localhost:8082
   kagent API / A2A        http://localhost:8083
   Jaeger (ślady)          http://localhost:16686

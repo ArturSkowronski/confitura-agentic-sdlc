@@ -1,0 +1,21 @@
+# Konto, na którym chodzą kroki linii. Argo potrzebuje zapisu wyników kroków (workflowtaskresults).
+apiVersion: v1
+kind: ServiceAccount
+metadata: {name: fabryka, namespace: fabryka}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata: {name: fabryka-linia, namespace: fabryka}
+rules:
+  - apiGroups: ["argoproj.io"]
+    resources: ["workflowtaskresults"]
+    verbs: ["create", "patch"]
+  - apiGroups: [""]
+    resources: ["pods", "pods/log"]
+    verbs: ["get", "watch", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata: {name: fabryka-linia, namespace: fabryka}
+subjects: [{kind: ServiceAccount, name: fabryka, namespace: fabryka}]
+roleRef: {kind: Role, name: fabryka-linia, apiGroup: rbac.authorization.k8s.io}

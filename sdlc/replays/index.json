@@ -1,0 +1,23 @@
+{
+  "_comment": "Nagrane zmiany dla trybu AGENT=replay. Wybór po słowach z issue i po module z routingu.",
+  "replays": [
+    {
+      "match": ["rabat"],
+      "module": "orders-service",
+      "patch": "rabat-w-zamowieniach.patch",
+      "note": "Rabat 10% powyżej 500 zł policzony w OrderService. Testy przechodzą."
+    },
+    {
+      "match": ["rabat"],
+      "module": "pricing-lib",
+      "patch": "rabat-w-pricing.patch",
+      "note": "Nowa polityka ThresholdDiscount w pricing-lib, dopisana do testów własności."
+    },
+    {
+      "match": ["zwrot"],
+      "module": "payments-service",
+      "patch": "zwroty-czesciowe.patch",
+      "note": "Zwroty częściowe: RefundService.refundPartially i endpoint w PaymentController."
+    }
+  ]
+}

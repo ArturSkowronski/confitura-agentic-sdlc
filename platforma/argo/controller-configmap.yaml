@@ -1,0 +1,15 @@
+# Konfiguracja kontrolera Argo na warsztat: bez repozytorium artefaktów (wyniki idą na dysk /work),
+# logi z podów, mały limit równoległości w namespace (lekcja 9 dokłada semafor WIP).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: workflow-controller-configmap
+  namespace: argo
+data:
+  namespaceParallelism: "6"
+  retentionPolicy: |
+    completed: 20
+    failed: 10
+  executor: |
+    resources:
+      requests: {cpu: 10m, memory: 64Mi}
