@@ -1,5 +1,5 @@
 # Wszystko, czego potrzebujesz na warsztacie. `make help` pokazuje listę.
-.PHONY: help klaster setup doctor lekcja klucz a2a wyslij port-forward hala test route agents-md
+.PHONY: help klaster setup doctor lekcja klucz a2a wyslij port-forward hala test route agents-md przyjecie
 
 help:
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  make %-14s %s\n", $$1, $$2}'
@@ -47,6 +47,10 @@ test: ## Build i testy systemu (z regułami ArchUnit)
 
 route: ## Routing lokalnie: make route T="Rabat 10% powyżej 500 zł"
 	@python3 sdlc/context.py route --title "$(T)" --body "$(B)"
+
+przyjecie: ## Przyjęcie zlecenia lokalnie (routing + kryteria + pytania agenta): make przyjecie Z=anulowanie
+	@python3 sdlc/context.py route --title "$$(python3 sdlc/zlecenia.py $(Z) --title)" --body "$$(python3 sdlc/zlecenia.py $(Z) --body)" >/dev/null 2>&1
+	@python3 sdlc/intake.py --title "$$(python3 sdlc/zlecenia.py $(Z) --title)" --body "$$(python3 sdlc/zlecenia.py $(Z) --body)" 2>/dev/null
 
 agents-md: ## Przebuduj AGENTS.md ze źródeł (module.json, docs, ops, historia)
 	@python3 sdlc/context.py agents-md

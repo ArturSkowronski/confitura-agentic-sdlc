@@ -2,7 +2,12 @@
   "name": "pricing-lib",
   "kind": "library",
   "purpose": "Ceny, rabaty i cała arytmetyka pieniędzy dla sklepu. Używają jej orders-service i payments-service.",
-  "owns": [],
+  "owns": [
+    "rabat",
+    "cena",
+    "kwota",
+    "pieniądze"
+  ],
   "keywords": [
     "rabat",
     "zniżka",
