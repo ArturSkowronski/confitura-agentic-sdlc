@@ -1,0 +1,56 @@
+{
+  "_comment": "Reguły review jako kod. Deterministyczne (regex) działają zawsze. Reguły LLM muszą mieć kryteria zaliczenia i niezaliczenia, inaczej model zgaduje.",
+  "rules": [
+    {
+      "id": "DET-001",
+      "kind": "regex",
+      "severity": "blocking",
+      "paths": ["system/"],
+      "pattern": "(?i)(api[_-]?key|secret|password|token)\\s*=\\s*\"[^\"]{8,}\"",
+      "message": "Wygląda na sekret wklejony w kod."
+    },
+    {
+      "id": "DET-002",
+      "kind": "regex",
+      "severity": "recommendation",
+      "paths": ["system/"],
+      "pattern": "catch \\((Exception|Throwable) \\w+\\) \\{\\s*\\}",
+      "message": "Pusty catch połyka błąd."
+    },
+    {
+      "id": "DET-003",
+      "kind": "regex",
+      "severity": "recommendation",
+      "paths": ["system/"],
+      "pattern": "(TODO|FIXME|XXX)",
+      "message": "TODO w nowym kodzie: dopisz issue albo zrób to teraz."
+    },
+    {
+      "id": "DET-004",
+      "kind": "regex",
+      "severity": "blocking",
+      "paths": ["system/payments-service/"],
+      "pattern": "\\.refund\\([^)]*\\)",
+      "unless": "idempotency|refund-",
+      "message": "Wywołanie operatora kart bez klucza idempotencji (INC-2026-03-14)."
+    },
+    {
+      "id": "LLM-001",
+      "kind": "llm",
+      "lens": "tests",
+      "rule": "Test sprawdza wymaganie, a nie przepisuje implementacji.",
+      "pass": "Test ustawia dane wejściowe i porównuje wynik z wartością wyliczoną ręcznie albo z własnością (np. suma = total + rabat).",
+      "fail": "Test wylicza oczekiwaną wartość tą samą formułą co kod produkcyjny, więc przejdzie nawet dla błędnej formuły.",
+      "example_fail": "assertEquals(subtotal.percent(10), policy.discountFor(subtotal))"
+    },
+    {
+      "id": "LLM-003",
+      "kind": "llm",
+      "lens": "security",
+      "rule": "Kod nie ufa danym z żądania.",
+      "pass": "Kwoty i identyfikatory z żądania są walidowane, zanim trafią do domeny.",
+      "fail": "Kwota zwrotu pochodzi z żądania i nie jest porównana z kwotą płatności.",
+      "example_fail": "refund(paymentId, Money.of(request.amount()))"
+    }
+  ]
+}

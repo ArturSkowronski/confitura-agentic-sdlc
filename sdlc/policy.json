@@ -1,0 +1,53 @@
+{
+  "_comment": "Polityka fabryki. Zmieniasz ją w PR jak każdy inny kod: gdzie świeci światło, decyduje wersjonowany plik, a nie nastrój reviewera.",
+  "autonomy": {
+    "_comment": "lights-out = przyjęcie bez człowieka, ale tylko gdy zlecenie ma własne scenariusze i wszystkie przeszły.",
+    "low": "lights-out",
+    "medium": "lights-out",
+    "high": "człowiek",
+    "critical": "człowiek"
+  },
+  "line": {
+    "wip_limit": 3,
+    "max_attempts": 2
+  },
+  "critical_paths": [
+    "system/payments-service/"
+  ],
+  "gate_paths": [
+    ".github/",
+    "scenarios/",
+    "sdlc/",
+    "system/architecture/",
+    "system/pom.xml"
+  ],
+  "sensitive_paths": [
+    "system/pricing-lib/"
+  ],
+  "risk": {
+    "medium_diff_lines": 80,
+    "large_diff_lines": 250,
+    "unstable_churn_30d": 3,
+    "levels": {
+      "low": 0,
+      "medium": 2,
+      "high": 5,
+      "critical": 8
+    }
+  },
+  "review": {
+    "llm_from_level": "medium",
+    "lenses": [
+      "correctness",
+      "security",
+      "tests"
+    ],
+    "max_findings": 5,
+    "min_confidence": 0.6,
+    "certain_confidence": 0.8
+  },
+  "gates": {
+    "_comment": "Próg testów mutacyjnych (PIT, tylko zmienione klasy). Poniżej progu bramka jest czerwona.",
+    "mutation_threshold": 50
+  }
+}

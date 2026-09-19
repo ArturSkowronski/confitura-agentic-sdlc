@@ -11,7 +11,7 @@ setup: ## Zbuduj obrazy fabryki, załaduj do kind, wdróż warsztat (dysk, magaz
 	@scripts/obrazy.sh
 	@kubectl apply -f platforma/linia/ >/dev/null
 	@kubectl apply -f platforma/warsztat/pvc.yaml -f platforma/warsztat/magazyn.yaml -f platforma/warsztat/mcpserver.yaml >/dev/null
-	@kubectl apply -f platforma/kagent/agent-przyjecie.yaml -f platforma/kagent/agent-wykonawca.yaml >/dev/null
+	@kubectl apply -f platforma/kagent/agent-przyjecie.yaml -f platforma/kagent/agent-wykonawca.yaml -f platforma/kagent/agent-recenzent.yaml >/dev/null
 	@kubectl rollout status -n fabryka deploy/magazyn --timeout=120s >/dev/null
 	@kubectl wait --for=condition=Ready mcpserver/warsztat -n fabryka --timeout=180s >/dev/null
 	@kubectl wait --for=condition=Ready agent/wykonawca -n fabryka --timeout=180s >/dev/null

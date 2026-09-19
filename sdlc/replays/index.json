@@ -1,23 +1,38 @@
 {
-  "_comment": "Nagrane zmiany dla trybu AGENT=replay. Wybór po słowach z issue i po module z routingu.",
+  "_comment": "Nagrane zmiany dla trybu AGENT=replay. Wybór po słowach ze zlecenia, module z routingu i numerze próby. Nagrania próby 2 zrobił prawdziwy agent (kagent + warsztat) po raporcie z próby 1.",
   "replays": [
     {
-      "match": ["rabat"],
+      "match": [
+        "rabat"
+      ],
       "module": "orders-service",
       "patch": "rabat-w-zamowieniach.patch",
       "note": "Rabat 10% powyżej 500 zł policzony w OrderService. Testy przechodzą."
     },
     {
-      "match": ["rabat"],
+      "match": [
+        "rabat"
+      ],
       "module": "pricing-lib",
       "patch": "rabat-w-pricing.patch",
       "note": "Nowa polityka ThresholdDiscount w pricing-lib, dopisana do testów własności."
     },
     {
-      "match": ["zwrot"],
+      "match": [
+        "zwrot"
+      ],
       "module": "payments-service",
       "patch": "zwroty-czesciowe.patch",
       "note": "Zwroty częściowe: RefundService.refundPartially i endpoint w PaymentController."
+    },
+    {
+      "match": [
+        "zwrot"
+      ],
+      "module": "payments-service",
+      "attempt": 2,
+      "patch": "zwroty-czesciowe-poprawka.patch",
+      "note": "Poprawka: własny klucz idempotencji dla każdego zwrotu częściowego, odrzucenie zwrotu ponad pozostałą kwotę. Nagranie z prawdziwego agenta."
     }
   ]
 }
