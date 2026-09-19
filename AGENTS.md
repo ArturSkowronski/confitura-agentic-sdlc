@@ -21,6 +21,7 @@ Architecture rules (they break the build and cannot be bypassed in a change):
 - `services_do_not_know_each_other`: serwisy rozmawiają przez API, a wspólna jest tylko biblioteka pricing, zob. docs/adr/0003
 - `no_standard_streams`: logujemy przez logger, a nie System.out
 - `no_legacy_date_api`: modele uczone na starym kodzie sięgają po java.util.Date; używamy java.time
+- `money_arithmetic_only_in_pricing`: arytmetyka pieniędzy tylko w pricing-lib, serwisy używają Money, nie BigDecimal, zob. docs/adr/0001
 
 Conventions (docs/conventions.md):
 
