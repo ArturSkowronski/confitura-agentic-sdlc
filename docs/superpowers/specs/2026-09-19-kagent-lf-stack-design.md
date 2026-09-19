@@ -55,7 +55,7 @@ Kyverno: ClusterPolicy na Agent CR (narzędzia, etykiety)       Jaeger: ślady O
 | Komponent | Technologia | Ścieżka w repo |
 |---|---|---|
 | Klaster | kind 0.33, K8s 1.36 | `platforma/kind.yaml`, `make klaster` |
-| Orkiestrator agentów | kagent 0.10.1 (Helm OCI), runtime Go ADK | `platforma/kagent/` (ModelConfig, Agent ×3, RemoteMCPServer) |
+| Orkiestrator agentów | kagent 0.10.1 (Helm OCI), runtime Go ADK; agenci i ModelConfig w namespace `fabryka` (kagent w `kagent`) | `platforma/kagent/` (ModelConfig, Agent ×4) |
 | Narzędzia agenta | serwer MCP (Python `mcp`, streamable HTTP) na PVC `/work`, wdrożony przez CRD `MCPServer` (kmcp, `kagent.dev/v1alpha1`) | `platforma/warsztat/` (server.py, Dockerfile), obraz `fabryka-warsztat` |
 | Linia | Argo Workflows 4.1 (quick-start-minimal, server-side apply CRD) | `platforma/linia/fabryka.yaml` |
 | Kroki linii | obraz `fabryka-toolbox` (temurin 21 + maven + python3 + git + gitleaks + cosign) | `platforma/toolbox/Dockerfile` |
@@ -68,7 +68,7 @@ Kyverno: ClusterPolicy na Agent CR (narzędzia, etykiety)       Jaeger: ślady O
 
 | Agent | Rola | Narzędzia | Kiedy |
 |---|---|---|---|
-| `przyjecie` | pytania do autora zlecenia bez kryteriów (zamiast `llm.chat` w intake) | brak | lekcja 4 |
+| `przyjecie` | pytania do autora zlecenia bez kryteriów (zamiast `llm.chat` w intake) | brak | lekcja 1 (ćwiczenie), 4 (w linii) |
 | `wykonawca` | zmiana kodu w `/work/repo` | RemoteMCPServer `warsztat`: `list_files`, `read_file`, `write_file`, `run_build`, `git_diff` | lekcja 2 |
 | `recenzent` | soczewki review od progu ryzyka (JSON z findings) | brak | lekcja 8 |
 
@@ -155,3 +155,13 @@ Poruszanie się: `make lekcja N=4` robi `git stash -u` i `git switch -C praca le
 - `make replay Z=rabat`: pełna linia bez modelu, wynik w `.sdlc/out/`.
 - `platforma/warsztat/test_server.py`: ścieżki chronione, `holdout.peek`, `run_build`.
 - Każdy tag `lekcja-NN` przechodzi `make doctor` i `make replay`, gdzie linia już istnieje.
+
+## Odstępstwa od spec po wdrożeniu (19.09)
+
+- Argo: `install.yaml` zamiast `quick-start-minimal` (quick-start w 4.1.4 wymusza plugin artefaktów „test”); serwer po HTTP z `--auth-mode=server`.
+- Blokujące znalezisko review eskaluje do człowieka, nie do poprawki. Poprawkę wymuszają tylko bramki deterministyczne.
+- Próg mutacji w `sdlc/policy.json` (`gates.mutation_threshold`, 50).
+- Nagrania próby 2 (`sdlc/replays/*-poprawka.patch`): zwroty z prawdziwego agenta, rabat ręcznie (wpięcie polityki w `OrdersModule.production()`).
+- cosign 3 offline: `sign-blob --key … --tlog-upload=false --use-signing-config=false --bundle …`, weryfikacja `verify-blob --key … --bundle … --insecure-ignore-tlog`.
+- Snapshot repo niesie `.git` (L3 z historii) i commit working tree nazwiskiem uczestnika.
+- Semafor WIP nie chroni przed dwoma przebiegami tego samego zlecenia naraz (wspólna gałąź na jednym dysku).

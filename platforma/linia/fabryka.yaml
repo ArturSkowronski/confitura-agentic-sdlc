@@ -1,6 +1,7 @@
-# Linia produkcyjna fabryki (lekcja 9). Jeden przebieg = jedno zlecenie, próby jako rekurencja szablonu `linia`:
+# Linia produkcyjna fabryki (lekcja 10). Jeden przebieg = jedno zlecenie, próby jako rekurencja szablonu `linia`:
 #   📥 przyjęcie (spec, routing) → 🤖 wykonawca (kagent przez A2A albo replay) → 📦 zmiana (gałąź + łatka w /work/out)
 #   → 🧱 kontrola jakości ‖ 🔎 ryzyko i review → ⚖️ decyzja: lights-out | 👤 człowiek | 🔁 poprawka (próba+1) | 🚨 andon
+#   → 🔗 księga (łańcuch hashy, podpis cosign) + 🏭 karta zlecenia
 # Uruchomienie: make zlecenie Z=rabat [AGENT=replay]. Graf i logi: hala (Argo UI).
 apiVersion: argoproj.io/v1alpha1
 kind: WorkflowTemplate
@@ -23,6 +24,8 @@ spec:
   volumes:
     - name: work
       persistentVolumeClaim: {claimName: warsztat}
+    - name: cosign
+      secret: {secretName: fabryka-cosign, optional: true}
   templates:
     - name: linia
       inputs:
@@ -58,6 +61,10 @@ spec:
             template: czlowiek
             when: "{{steps.decyzja.outputs.parameters.decyzja}} == człowiek"
             arguments: {parameters: [{name: zlecenie, value: "{{inputs.parameters.zlecenie}}"}, {name: proba, value: "{{inputs.parameters.proba}}"}]}
+        - - name: ksiega
+            template: ksiega
+            when: "{{steps.przyjecie.outputs.parameters.accepted}} == true"
+            arguments: {parameters: [{name: zlecenie, value: "{{inputs.parameters.zlecenie}}"}, {name: proba, value: "{{inputs.parameters.proba}}"}, {name: decyzja, value: "{{steps.decyzja.outputs.parameters.decyzja}}"}]}
         - - name: wynik
             template: wynik
             when: "{{steps.przyjecie.outputs.parameters.accepted}} == true && {{steps.decyzja.outputs.parameters.decyzja}} != poprawka"
@@ -192,12 +199,37 @@ spec:
                     printf '%s\n' "$decyzja" > "$OUT/decyzja"; [ -z "$reason" ] || printf '%s\n' "$reason" > "$OUT/andon.md"
                     if [ "$decyzja" = "poprawka" ]; then python3 sdlc/factory.py feedback > "$OUT/feedback.md"; echo "--- raport dla agenta ---"; cat "$OUT/feedback.md"; fi
 
-    # TODO(lekcja 9): ten krok ma czekać na człowieka. Zamień go na dwa kroki: `czekaj` (szablon `suspend`
-    # z wyjściem `kto`, valueFrom.supplied) i `zapisz`, który pisze do $OUT/czlowiek "human.approved <kto>".
-    # make zatwierdz W=<przebieg> ustawia `kto` i wznawia linię.
+    # Człowiek to węzeł z rolą (lekcja 9): linia staje (suspend), make zatwierdz zapisuje kto i wznawia.
     - name: czlowiek
       inputs:
         parameters: [{name: zlecenie}, {name: proba}]
+      steps:
+        - - name: czekaj
+            template: czekaj
+        - - name: zapisz
+            template: krok
+            arguments:
+              parameters:
+                - {name: zlecenie, value: "{{inputs.parameters.zlecenie}}"}
+                - {name: proba, value: "{{inputs.parameters.proba}}"}
+                - name: skrypt
+                  value: |
+                    kto="{{steps.czekaj.outputs.parameters.kto}}"
+                    printf '### 👤 Akceptacja: ✅ %s\n' "$kto" > "$OUT/czlowiek.md"
+                    printf 'human.approved %s\n' "$kto" > "$OUT/czlowiek"; cat "$OUT/czlowiek.md"
+
+    - name: czekaj
+      suspend: {}
+      outputs:
+        parameters:
+          - name: kto
+            valueFrom: {supplied: {}}
+
+    # Księga: każde zdarzenie próby jako linia z hashem poprzedniej. Budowana deterministycznie z wyników kroków
+    # (bramki, wyrocznia, ryzyko, decyzja, człowiek) i ze śladu narzędzi agenta. Podpis kluczem fabryki (cosign, offline).
+    - name: ksiega
+      inputs:
+        parameters: [{name: zlecenie}, {name: proba}, {name: decyzja}]
       steps:
         - - name: run
             template: krok
@@ -207,8 +239,31 @@ spec:
                 - {name: proba, value: "{{inputs.parameters.proba}}"}
                 - name: skrypt
                   value: |
-                    printf '### 👤 Akceptacja: ⚠️ brak\n\nRyzyko wymaga człowieka, a przebieg nie czekał. Dodaj suspend do kroku czlowiek (lekcja 9).\n' > "$OUT/czlowiek.md"
-                    echo "human.approval_missing" > "$OUT/czlowiek"; cat "$OUT/czlowiek.md"
+                    decyzja="{{inputs.parameters.decyzja}}"; L="--file $OUT/ledger.jsonl"; rm -f "$OUT/ledger.jsonl"
+                    python3 sdlc/factory.py line-config > /dev/null
+                    python3 sdlc/ledger.py $L append --type line.config --data "$(jq -c . .sdlc/line-config.json)"
+                    python3 sdlc/ledger.py $L append --type order.intake --data "$(jq -c '{accepted, problems}' .sdlc/intake.json)"
+                    python3 sdlc/ledger.py $L append --type order.routed --data "$(jq -c --argjson a "$ATTEMPT" '{attempt: $a, module, reason, blast_radius, critical_in_radius}' .sdlc/route.json)"
+                    python3 sdlc/ledger.py $L append --type agent.prompt --data "{\"agent\": \"$AGENT\", \"sha256\": \"$(sha256sum .sdlc/prompt.md | cut -d' ' -f1)\", \"bytes\": $(wc -c < .sdlc/prompt.md)}"
+                    python3 sdlc/ledger.py $L ingest --source warsztat --events "$OUT/narzedzia.jsonl" > /dev/null
+                    python3 sdlc/ledger.py $L ingest --source "$AGENT" --events "$OUT/agent-events.jsonl" > /dev/null
+                    [ ! -s "$OUT/holdout-peek.jsonl" ] || python3 sdlc/ledger.py $L append --type holdout.peek --data "{\"count\": $(wc -l < "$OUT/holdout-peek.jsonl")}"
+                    python3 sdlc/ledger.py $L append --type git.commit --data "{\"sha\": \"$(git rev-parse HEAD)\", \"branch\": \"$(git branch --show-current)\", \"files\": $(git show --name-only --format= HEAD | jq -Rsc 'split("\n") | map(select(length > 0))')}"
+                    for f in "$OUT"/kontrola-*.exit; do n=$(basename "$f" .exit); python3 sdlc/ledger.py $L append --type "gate.${n#kontrola-?-}" --data "{\"exit_code\": $(cat "$f")}"; done
+                    [ ! -f "$OUT/wyrocznia.json" ] || python3 sdlc/ledger.py $L append --type gate.oracle --data "$(jq -c '{covered, working_failed, vault}' "$OUT/wyrocznia.json")"
+                    [ ! -f "$OUT/ryzyko.json" ] || python3 sdlc/ledger.py $L append --type review.risk --data "$(jq -c '{level, score, needs_human, autonomy}' "$OUT/ryzyko.json")"
+                    python3 sdlc/ledger.py $L append --type review.result --data "{\"exit_code\": $(cat "$OUT/review.exit" 2>/dev/null || echo 1)}"
+                    python3 sdlc/ledger.py $L append --type order.decision --data "$(jq -nc --arg d "$decyzja" --arg r "$(cat "$OUT/andon.md" 2>/dev/null)" --argjson a "$ATTEMPT" '{decision: $d, reason: $r, attempt: $a}')"
+                    if [ -f "$OUT/czlowiek" ]; then read -r kind who < "$OUT/czlowiek"; python3 sdlc/ledger.py $L append --type "$kind" --data "$(jq -nc --arg w "${who:-}" '{by: $w}')"; fi
+                    final="$decyzja"; [ "$decyzja" != "człowiek" ] || { grep -q human.approved "$OUT/czlowiek" 2>/dev/null && final="człowiek" || final="czeka"; }
+                    python3 sdlc/factory.py card --attempt "$ATTEMPT" --decision "$final" > "$OUT/karta.md"
+                    python3 sdlc/ledger.py $L append --type order.card --data "$(jq -c . .sdlc/card.json)"
+                    python3 sdlc/ledger.py $L verify && python3 sdlc/ledger.py $L summary > "$OUT/ksiega.md"
+                    if [ -f /run/secrets/cosign/cosign.key ]; then
+                      COSIGN_PASSWORD="" cosign sign-blob --yes --key /run/secrets/cosign/cosign.key --tlog-upload=false --use-signing-config=false \
+                        --bundle "$OUT/ledger.sigstore.json" "$OUT/ledger.jsonl" 2>/dev/null && echo "księga podpisana: $OUT/ledger.sigstore.json"
+                    else echo "brak klucza cosign (make klucze-cosign): księga bez podpisu"; fi
+                    cat "$OUT/karta.md" "$OUT/ksiega.md"
 
     - name: wynik
       inputs:
@@ -270,13 +325,14 @@ spec:
           - {name: AGENT, value: "{{inputs.parameters.agent}}"}
           - {name: ATTEMPT, value: "{{inputs.parameters.proba}}"}
           - {name: FABRYKA_RUN, value: "{{workflow.name}}"}
+          - {name: FABRYKA_STEP, value: "{{pod.name}}"}
           - {name: OUT, value: "/work/out/{{inputs.parameters.zlecenie}}/proba-{{inputs.parameters.proba}}"}
           - {name: OUTPUTS_DIR, value: /tmp/outputs}
           - {name: PYTHONDONTWRITEBYTECODE, value: "1"}
           - {name: KAGENT_URL, value: "http://kagent-controller.kagent.svc:8083"}
           - {name: KAGENT_NS, value: fabryka}
           - {name: A2A_USER, value: "linia@fabryka"}
-        volumeMounts: [{name: work, mountPath: /work}]
+        volumeMounts: [{name: work, mountPath: /work}, {name: cosign, mountPath: /run/secrets/cosign, readOnly: true}]
         resources:
           requests: {cpu: 200m, memory: 512Mi}
           limits: {memory: 2Gi}

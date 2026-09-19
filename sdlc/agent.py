@@ -99,17 +99,25 @@ def run_replay(prompt: str, events: Path) -> int:
     """
     # REPLAY_MODULE nadpisuje routing: tak odtwarzamy „naiwną” zmianę od człowieka w złym module (lekcja 6).
     module = os.environ.get("REPLAY_MODULE") or load_json(STATE / "route.json")["module"]
-    words = set(tokens(prompt))
+    # Dopasowanie po tytule zlecenia, nie po całym prompcie: prompt niesie ADR-y i raport z poprawki,
+    # w których padają słowa z innych zleceń (np. „zwrot” w zleceniu o rabacie).
+    order = STATE / "zlecenie.json"
+    words = set(tokens(load_json(order)["title"] if order.exists() else prompt.splitlines()[0]))
     for replay in load_json(SDLC / "replays" / "index.json")["replays"]:
         same_attempt = replay.get("attempt", 1) == min(ATTEMPT, 2)
-        module_ok = ATTEMPT > 1 or replay["module"] == module
+        module_ok = replay["module"] == module
         if set(tokens(" ".join(replay["match"]))) & words and same_attempt and module_ok:
             patch = SDLC / "replays" / replay["patch"]
             events.write_text(json.dumps({"type": "replay", "patch": replay["patch"], "note": replay["note"]}, ensure_ascii=False) + "\n")
             (STATE / "pr-body.md").write_text(replay["note"] + "\n\n_(tryb replay: nagrana zmiana, bez modelu)_\n", encoding="utf-8")
             print(f"replay: {replay['patch']} (próba {ATTEMPT})")
             if ATTEMPT > 1:
-                # nagranie poprawki to pełna zmiana względem main, więc zaczynamy od czystego main
+                # nagranie poprawki to pełna zmiana względem main, więc zaczynamy od czystego main:
+                # usuwamy wszystko, co różni się od main (także pliki dodane w próbie 1), i przywracamy main
+                changed = subprocess.run(["git", "diff", "--name-only", BASE, "--", "system"], cwd=ROOT,
+                                         capture_output=True, text=True).stdout.split()
+                for f in changed:
+                    (ROOT / f).unlink(missing_ok=True)
                 subprocess.run(["git", "checkout", BASE, "--", "system"], cwd=ROOT)
                 subprocess.run(["git", "clean", "-fdq", "system"], cwd=ROOT)
             return subprocess.run(["git", "apply", "--whitespace=nowarn", str(patch)], cwd=ROOT).returncode

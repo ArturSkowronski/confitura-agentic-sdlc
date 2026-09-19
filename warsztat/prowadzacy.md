@@ -1,24 +1,24 @@
 # Notatki prowadzącego
 
 Metryka warsztatu: **odsłony na minutę**. Odsłona to moment, w którym coś zielonego okazuje
-się złe albo fabryka robi coś, czego sala się nie spodziewa. Plan: 11 odsłon w 120 minutach,
-średnio jedna co 11 minut, a w środkowej części (stacje 2-4) jedna co 7-8 minut.
+się złe albo fabryka robi coś, czego sala się nie spodziewa. Plan: 12 odsłon w 120 minutach.
 
 ## Odsłony
 
-| # | Minuta | Slajd | Odsłona | Co musi być gotowe |
+| # | Minuta | Lekcja | Odsłona | Co musi być gotowe |
 |---|---|---|---|---|
-| 1 | 0:04 | 3 | PR zielony, czytelny, w złym module, przyjęty lights-out | repo `sdlc-demo-start` z gotowym przebiegiem rabatu |
-| 2 | 0:15 | 6 | Fabryka odsyła zlecenie z pytaniami | zlecenie „Anulowanie” u uczestników |
-| 3 | 0:20 | 7 | „Zamówienie” ×9 wygrywa z „rabatem”: routing wyjaśniony liczbami | komentarz Routing |
-| 4 | 0:33 | 9 | Jedna linia YAML i przebieg staje z przyciskiem Approve | stacja 2 |
-| 5 | 0:44 | 11 | Czwarte zlecenie czeka w kolejce i rusza samo po Approve | 3 zlecenia w toku w repo demo |
-| 6 | 0:57 | 13 | jqwik mówi do agenta | terminal na projektorze, `mvn -B verify` |
-| 7 | 1:00 | 14 | Incydent z marca łapie scenariusz, zanim ktoś czyta kod | przebieg zwrotów, próba 1 |
-| 8 | 1:13 | 17 | Fabryka sama odsyła do poprawki, ryzyko rośnie z próbą | dwa przebiegi zwrotów obok siebie |
-| 9 | 1:27 | 19 | Jedno słowo w księdze i łańcuch pokazuje linię | pobrana księga z przebiegu |
-| 10 | 1:33 | 20 | `/rule` → reguła od agenta → `critical`, czeka na człowieka | dowolny PR od agenta |
-| 11 | 1:45 | 23 | Hala: produkcja kontra przyjęcie dla całej sali | `tower/index.html` + PAT |
+| 1 | 0:03 | otwarcie | Łatka zielona, czytelna, w złym module, przyjęta lights-out | klaster demo z gotowym przebiegiem rabatu bez `owns` |
+| 2 | 0:08 | 1 | `kubectl get agent`: agent to Deployment i Service, karta A2A pod `.well-known` | klaster uczestników |
+| 3 | 0:19 | 2 | Wykonawca zapisuje `sdlc/policy.json`, bo serwer nie ma listy chronionych ścieżek | agent wykonawca, pusty `PROTECTED_PATHS` |
+| 4 | 0:30 | 3 | „Zamówienie” ×6 wygrywa z „rabatem”: routing wyjaśniony liczbami | `make route` na projektorze |
+| 5 | 0:41 | 4 | Fabryka odsyła anulowanie z pytaniami od agenta | `make przyjecie Z=anulowanie` |
+| 6 | 0:52 | 5 | Ten sam graf, prawdziwy agent: 12 wywołań narzędzi, `run_build` zielony, łatka w pricing-lib | klucze rozdane, `make zlecenie Z=rabat` |
+| 7 | 1:03 | 6 | jqwik mówi do agenta w logu `run_build`; naiwny rabat przechodzi wszystkie bramki | `make naiwna` |
+| 8 | 1:14 | 7 | Incydent z marca łapie scenariusz, zanim ktoś czyta kod; sejf nieotwarty | `make replay Z=zwroty-czesciowe` |
+| 9 | 1:25 | 8 | Węzeł `poprawka` to znowu cała linia; recenzent wytyka losowy UUID jako klucz idempotencji | przebieg zwrotów z modelem |
+| 10 | 1:36 | 9 | Linia staje na żółto; `make zatwierdz` i imię w księdze; Kyverno odrzuca złego agenta | suspend, polityka CEL |
+| 11 | 1:47 | 10 | Jedno słowo w księdze i łańcuch pokazuje linię, podpis pęka | `make ksiega-verify` |
+| 12 | 1:52 | klamra | Hala: wszystkie przebiegi sali w Argo UI, ślady wykonawcy w Jaegerze | Argo UI na projektorze |
 
 Między odsłonami są slajdy z tezą. Każda teza ma dowód z repo, nie z internetu.
 
@@ -26,55 +26,72 @@ Między odsłonami są slajdy z tezą. Każda teza ma dowód z repo, nie z inter
 
 | Kiedy | Co |
 |---|---|
-| do 18.09 | Upublicznij repo z gałęziami `stacja-1`…`stacja-5` i `final`. Poprawki wspólne rób na `main`, potem `scripts/restack.sh --push`. |
-| do 18.09 | Postaw dwa repo demo: `REPO_NAME=sdlc-demo-start make bootstrap` i `REPO_NAME=sdlc-demo-final FACTORY_MODE=lights-out make bootstrap`, w drugim `make catch-up N=final`. |
-| do 18.09 | Przejdź trzy zlecenia (rabat, zwroty, anulowanie) na prawdziwym modelu w obu repo. Zmierz czasy przebiegów i koszt z kart zleceń. |
-| do 19.09 | Wyślij mail z setupem (`warsztat/mail-setup.md`). Uzupełnij dzień, godzinę i salę. |
-| 21-23.09 | Odpowiedz osobom z czerwonym `make doctor`. |
+| do 22.09 | Wypchnij repo z tagami `lekcja-01` … `lekcja-10`: `scripts/restack.sh --push`. `main` = lekcja 10. |
+| do 22.09 | Opublikuj obrazy `fabryka-toolbox` i `fabryka-warsztat` na ghcr.io (plan B dla osób, którym build nie przejdzie) i dopisz w SETUP.md. |
+| do 22.09 | Wyślij mail z setupem (`warsztat/mail-setup.md`). Uzupełnij salę. |
+| 23.09 | Przejdź na czysto: `kind delete cluster --name fabryka`, `make klaster`, `make setup`, `make doctor`, `make replay Z=rabat`, `make zlecenie Z=zwroty-czesciowe`. Zmierz czasy. |
 | 24.09 | Wygeneruj 12 kluczy OpenRouter z limitem 8 USD każdy. Wydrukuj na kartkach. |
-| 24.09 | Nagraj ekran z odsłonami 1, 7 i 8 (plan B, gdy padnie sieć). |
-| 24.09 | Utwórz fine-grained PAT tylko do odczytu publicznych repo dla hali. |
+| 24.09 | Nagraj ekran z odsłonami 6, 8 i 9 (plan B, gdy padnie sieć albo model). |
+| 25.09 | Laptop demo: klaster z przebiegami rabatu (bez `owns` i z `owns`), zwrotów (2 próby, zatwierdzone) i naiwnej zmiany. Hala otwarta. |
 | po warsztacie | Unieważnij klucze OpenRouter. |
 
-Koszt: przebieg agenta na Sonnet 5 to rząd 0,5-1 USD, poprawka drugie tyle. 10 osób × 5
-przebiegów mieści się w 60 USD. Soczewki review i pytania z przyjęcia na DeepSeek V4 Flash
-kosztują grosze.
+Czasy z prób 19.09 (M5 Pro, 8 GB dla Dockera): `make klaster` od zera 2 min, `make setup` (build
+obrazów z rozgrzanym Mavenem) 6 min, replay rabatu z pełną linią 1,5 min, przebieg z modelem
+(gpt-5-mini przez kagent) 2 min na próbę plus 1 min na review, zwroty z dwiema próbami 5,5 min.
+Koszt: próba wykonawcy na Sonnet 5 to rząd 0,3 do 0,8 USD, soczewki review grosze. 10 osób ×
+6 przebiegów mieści się w 60 USD.
 
 ## Przebieg (120 min)
 
 | Czas | Blok | Slajdy |
 |---|---|---|
-| 0:00 | Otwarcie, teza, poziomy autonomii | 1-4 |
-| 0:09 | Plan, klucze (`make key`) | 5 |
-| 0:15 | Stacja 1: przyjęcie i kontekst | 6-8 |
-| 0:33 | Stacja 2: linia, światło, uprawnienia, WIP | 9-11 |
-| 0:51 | Stacja 3: kontrola jakości, jqwik, wyrocznia, macierz | 12-15 |
-| 1:09 | Stacja 4: wyrocznia się zużywa, poprawki, ryzyko | 16-18 |
-| 1:27 | Stacja 5: księga, `/rule`, kapitał, metryki | 19-22 |
-| 1:45 | Klamra: hala, mapa, zamknięcie | 23-25 |
+| 0:00 | Otwarcie, teza, poziomy autonomii, stack LF | 1-4 |
+| 0:05 | Lekcja 1: klaster i pierwszy agent | 5-6 |
+| 0:16 | Lekcja 2: warsztat i narzędzia | 7-8 |
+| 0:27 | Lekcja 3: kontekst L1–L5 | 9-10 |
+| 0:38 | Lekcja 4: przyjęcie, klucze (`make klucz`) | 11 |
+| 0:49 | Lekcja 5: linia | 12-13 |
+| 1:00 | Lekcja 6: kontrola jakości | 14-15 |
+| 1:11 | Lekcja 7: wyrocznia | 16-17 |
+| 1:22 | Lekcja 8: ryzyko, review, poprawki | 18-19 |
+| 1:33 | Lekcja 9: światło, WIP, polityka | 20-21 |
+| 1:44 | Lekcja 10: ślad | 22-23 |
+| 1:55 | Klamra: hala, mapa, zamknięcie | 24-25 |
 
-Jeśli jesteś spóźniony, stacja 5 idzie jako demo (slajdy 19-20), bez ćwiczeń.
+Jeśli jesteś spóźniony: lekcja 3 i 4 jako demo (bez ćwiczeń), lekcja 10 tylko odsłona 11.
+Ćwiczenia, których nie wolno pominąć: 2 (chronione ścieżki), 6 (ArchUnit), 9A (suspend).
 
 ## Plan B
 
 | Problem | Co robisz |
 |---|---|
-| Model nie odpowiada albo skończył się limit | `gh variable set AGENT -b replay`. Wszystkie stacje działają na nagraniach, łącznie z pętlą poprawek. |
-| Wi-Fi padło, GitHub niedostępny | `make replay T="..."` i `make oracle T="..."` lokalnie. Nagrania odsłon. |
-| Uczestnik utknął | `make catch-up N=<stacja>` |
-| Przebieg trwa za długo | Pokaż gotowy przebieg z repo demo, bieżący zostaw w tle. |
-| Ktoś nie ma setupu | Paruje się z sąsiadem. Grupa 10 osób, to działa. |
+| Model nie odpowiada albo skończył się limit | `make replay Z=…`. Wszystkie lekcje działają na nagraniach, łącznie z pętlą poprawek (nagrania próby 2 są z prawdziwego agenta). Review bez modelu zostaje na regexach. |
+| Wi-Fi padło | Nic się nie dzieje: klaster, obrazy i cache Mavena są na laptopie. Tylko model potrzebuje sieci. |
+| Uczestnik utknął | `make lekcja N=<numer>`. Jego zmiany lądują w `git stash`. |
+| Build obrazów nie przeszedł u uczestnika | obrazy z ghcr.io (`IMAGE_TAG` w `scripts/workshop.env`) albo para z sąsiadem. |
+| Przebieg trwa za długo | Pokaż gotowy przebieg z laptopa demo, bieżący zostaw w tle w hali. |
+| Ktoś nie ma klastra | Paruje się z sąsiadem. Grupa 10 osób, to działa. |
 
 ## Znane zachowania
 
-- jqwik 1.10.1 wypisuje w logu testów tekst do agentów AI. Zostawiamy celowo (odsłona 6).
+- Instrukcje dla modeli (systemMessage agentów, prompt wykonawcy, soczewki review, opisy narzędzi MCP,
+  szkielet `AGENTS.md`) są po angielsku, odpowiedzi i materiały po polsku. Dokumenty organizacji
+  (ADR-y, konwencje, incydent) zostają po polsku i tak trafiają do agenta.
+- `platforma/kagent/modelconfig.yaml` ma `${LLM_MODEL}` i `${LLM_BASE_URL}`: wdrażaj przez `make klucz`
+  albo `make klaster`, nie `kubectl apply -f platforma/kagent/` na cały katalog (zepsuje ModelConfig).
+
+- jqwik 1.10.1 wypisuje w logu testów tekst do agentów AI. Zostawiamy celowo (odsłona 7).
   Wersja 1.9.3 jest czysta, gdyby agent zaczął na to reagować.
-- PR otwarty przez `GITHUB_TOKEN` nie uruchamia innych workflowów. Dlatego kontrola jakości
-  i review są wołane z `agent.yml` jako reusable workflows. Wyjątek: `workflow_dispatch`
-  z `GITHUB_TOKEN` uruchamia przebieg, więc na tym stoi pętla poprawek i kolejka.
-- Na gałęzi `stacja-2` job `approve` nie ma `environment:`, więc nie czeka. Zapisuje wtedy
-  w księdze `human.approval_missing`, a zmiana nie dostaje `accepted`.
-- Scenariusze są w publicznym repo, więc „agent nie widzi” znaczy: nie dostaje ich w checkoucie,
-  a sięgnięcie po nie zapisujemy jako `holdout.peek`. W produkcji sejf trzymasz w osobnym repo.
-- `FACTORY_MODE=dry-run` (domyślnie u uczestników) przyjmuje zmianę etykietą `accepted`, bez
-  merge'a. Dzięki temu `main` uczestnika zostaje stabilne między stacjami.
+- `kagent invoke` w CLI 0.10.1 nie dekoduje odpowiedzi (błąd `ClientResponse.error.data`).
+  Wszystko idzie przez `sdlc/a2a.py` (JSON-RPC `message/send`). CLI służy do `install` i `dashboard`.
+- Świeżo wdrożony agent jest `Ready` chwilę przed tym, jak jego pod przyjmuje połączenia.
+  `a2a.py` ponawia „connection refused” cztery razy.
+- kagent 1.0.0-alpha1 (z 18.09) ma inne API (`AgentTemplate`, `Harness`, A2A po gRPC) i wymaga
+  gVisor oraz K8s 1.37. Pinujemy 0.10.1 w `scripts/klaster.sh` i w `KAGENT_HELM_VERSION`.
+- Port 8083 kagent nie ma uwierzytelniania (tożsamość z nagłówka `X-User-Id`). Zostaje w klastrze.
+- Dysk `/work` jest jeden (ReadWriteOnce, jeden węzeł kind). Dwa przebiegi tego samego zlecenia
+  naraz nadpisują sobie gałąź. Semafor WIP nie chroni przed tym: to świadome uproszczenie warsztatu.
+- Helm na macOS w sesji bez TTY nie umie pobrać chartu OCI (keychain). U uczestników w terminalu
+  działa; gdyby nie, `KAGENT_CHART` i `KAGENT_CHART_CRDS` w `scripts/klaster.sh` przyjmują ścieżkę do `.tgz`.
+- Blokujące znalezisko review eskaluje do człowieka, nie do poprawki. Inaczej dobry model
+  (recenzent trafnie wytknął losowy UUID) kończyłby zwroty andonem po dwóch próbach.

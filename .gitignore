@@ -4,4 +4,5 @@
 .jqwik-database
 .sdlc/
 platforma/**/cosign.key
+platforma/linia/cosign/cosign.key
 target/

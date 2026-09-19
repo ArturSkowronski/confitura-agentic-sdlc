@@ -1,7 +1,7 @@
 # Polityka na deklaracje agentów (Kyverno ValidatingPolicy, CEL). Uprawnienia agenta to lista narzędzi,
 # a lista narzędzi to manifest, więc pilnuje jej admission controller, nie review.
 # Reguła 1 (gotowa): każdy agent fabryki ma etykietę fabryka.dev/rola.
-# Reguła 2 (TODO lekcja 9): wykonawca ma wyłącznie narzędzia serwera `warsztat` i nie woła innych agentów.
+# Reguła 2 (rozwiązanie lekcji 9): wykonawca ma wyłącznie narzędzia serwera `warsztat` i nie woła innych agentów.
 apiVersion: policies.kyverno.io/v1
 kind: ValidatingPolicy
 metadata:
@@ -20,7 +20,7 @@ spec:
     - expression: >-
         has(object.metadata.labels) && 'fabryka.dev/rola' in object.metadata.labels
       message: "Agent fabryki musi mieć etykietę fabryka.dev/rola (przyjecie | wykonawca | recenzent | probny)."
-    # TODO(lekcja 9): wykonawca (etykieta fabryka.dev/rola=wykonawca) może mieć tylko narzędzia
-    # type McpServer z mcpServer.name == 'warsztat'. Podpowiedź: object.spec.declarative.tools, makro all().
-    - expression: "true"
+    - expression: >-
+        !(has(object.metadata.labels) && object.metadata.labels[?'fabryka.dev/rola'].orValue('') == 'wykonawca') ||
+        object.spec.?declarative.?tools.orValue([]).all(t, t.type == 'McpServer' && t.?mcpServer.?name.orValue('') == 'warsztat')
       message: "Wykonawca ma tylko narzędzia serwera warsztat. Inne narzędzia i agenci jako narzędzia są zabronione."

@@ -33,6 +33,15 @@
       "attempt": 2,
       "patch": "zwroty-czesciowe-poprawka.patch",
       "note": "Poprawka: własny klucz idempotencji dla każdego zwrotu częściowego, odrzucenie zwrotu ponad pozostałą kwotę. Nagranie z prawdziwego agenta."
+    },
+    {
+      "match": [
+        "rabat"
+      ],
+      "module": "pricing-lib",
+      "attempt": 2,
+      "patch": "rabat-poprawka.patch",
+      "note": "Poprawka: ThresholdDiscount z pricing-lib wpięty w OrdersModule.production(). Scenariusz z wyroczni łapie brak wpięcia, choć testy jednostkowe polityki są zielone."
     }
   ]
 }
