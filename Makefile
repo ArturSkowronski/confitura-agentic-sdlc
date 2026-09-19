@@ -1,11 +1,24 @@
 # Wszystko, czego potrzebujesz na warsztacie. `make help` pokazuje listę.
-.PHONY: help klaster doctor lekcja klucz a2a port-forward hala test route agents-md
+.PHONY: help klaster setup doctor lekcja klucz a2a wyslij port-forward hala test route agents-md
 
 help:
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  make %-14s %s\n", $$1, $$2}'
 
 klaster: ## Postaw klaster fabryki: kind + Argo Workflows + kagent + Kyverno + Jaeger (idempotentne)
 	@scripts/klaster.sh
+
+setup: ## Zbuduj obrazy fabryki, załaduj do kind, wdróż warsztat (dysk, magazyn, serwer MCP, wykonawca)
+	@scripts/obrazy.sh
+	@kubectl apply -f platforma/warsztat/pvc.yaml -f platforma/warsztat/magazyn.yaml -f platforma/warsztat/mcpserver.yaml >/dev/null
+	@kubectl apply -f platforma/kagent/agent-przyjecie.yaml -f platforma/kagent/agent-wykonawca.yaml >/dev/null
+	@kubectl rollout status -n fabryka deploy/magazyn --timeout=120s >/dev/null
+	@kubectl wait --for=condition=Ready mcpserver/warsztat -n fabryka --timeout=180s >/dev/null
+	@kubectl wait --for=condition=Ready agent/wykonawca -n fabryka --timeout=180s >/dev/null
+	@scripts/wyslij.sh
+	@echo "Warsztat gotowy: make a2a A=wykonawca T=\"Wypisz moduły w system/\""
+
+wyslij: ## Wyślij snapshot repo do klastra (/work/repo w magazynie)
+	@scripts/wyslij.sh
 
 doctor: ## Sprawdź, czy wszystko działa (lokalnie i w klastrze)
 	@scripts/doctor.sh

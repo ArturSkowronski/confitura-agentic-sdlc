@@ -1,0 +1,12 @@
+# Wspólny dysk fabryki: /work/repo (kopia repozytorium), /work/out (wyniki), /work/events.jsonl (zdarzenia narzędzi).
+# Jeden węzeł w kind, więc ReadWriteOnce wystarcza: magazyn, serwer MCP i kroki linii chodzą na tym samym węźle.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: warsztat
+  namespace: fabryka
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 2Gi
