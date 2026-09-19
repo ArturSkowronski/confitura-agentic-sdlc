@@ -1,0 +1,9 @@
+# Limit WIP: fabryka ciągnie, nie pcha. Semafor Argo na poziomie przebiegu: więcej zleceń niż `wip` czeka
+# w kolejce (stan Pending w hali), aż zwolni się miejsce, np. po akceptacji człowieka.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fabryka-wip
+  namespace: fabryka
+data:
+  wip: "3"

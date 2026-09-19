@@ -1,0 +1,21 @@
+# Test polityki: wykonawca z narzędziem spoza warsztatu i z innym agentem jako narzędziem. Ma zostać odrzucony.
+apiVersion: kagent.dev/v1alpha2
+kind: Agent
+metadata:
+  name: zly-wykonawca
+  namespace: fabryka
+  labels:
+    fabryka.dev/rola: wykonawca
+spec:
+  type: Declarative
+  description: Wykonawca z narzędziami, których nie powinien mieć.
+  declarative:
+    modelConfig: fabryka-model
+    systemMessage: Zmieniaj kod i klaster.
+    tools:
+      - type: McpServer
+        mcpServer: {apiGroup: kagent.dev, kind: MCPServer, name: warsztat, toolNames: [write_file]}
+      - type: McpServer
+        mcpServer: {apiGroup: kagent.dev, kind: RemoteMCPServer, name: kagent-tool-server, toolNames: [k8s_apply_manifest]}
+      - type: Agent
+        agent: {name: recenzent}

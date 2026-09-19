@@ -1,4 +1,4 @@
-# Linia produkcyjna fabryki (lekcja 8). Jeden przebieg = jedno zlecenie, próby jako rekurencja szablonu `linia`:
+# Linia produkcyjna fabryki (lekcja 9). Jeden przebieg = jedno zlecenie, próby jako rekurencja szablonu `linia`:
 #   📥 przyjęcie (spec, routing) → 🤖 wykonawca (kagent przez A2A albo replay) → 📦 zmiana (gałąź + łatka w /work/out)
 #   → 🧱 kontrola jakości ‖ 🔎 ryzyko i review → ⚖️ decyzja: lights-out | 👤 człowiek | 🔁 poprawka (próba+1) | 🚨 andon
 # Uruchomienie: make zlecenie Z=rabat [AGENT=replay]. Graf i logi: hala (Argo UI).
@@ -10,6 +10,10 @@ metadata:
 spec:
   serviceAccountName: fabryka
   entrypoint: linia
+  # Limit WIP (lekcja 9): fabryka ciągnie, nie pcha. Nadmiarowe zlecenia czekają w kolejce na semaforze.
+  synchronization:
+    semaphores:
+      - configMapKeyRef: {name: fabryka-wip, key: wip}
   arguments:
     parameters:
       - {name: zlecenie, value: rabat}
@@ -188,7 +192,9 @@ spec:
                     printf '%s\n' "$decyzja" > "$OUT/decyzja"; [ -z "$reason" ] || printf '%s\n' "$reason" > "$OUT/andon.md"
                     if [ "$decyzja" = "poprawka" ]; then python3 sdlc/factory.py feedback > "$OUT/feedback.md"; echo "--- raport dla agenta ---"; cat "$OUT/feedback.md"; fi
 
-    # Lekcja 8: fabryka wie, że tu powinien stanąć człowiek, ale jeszcze nie czeka. Lekcja 9 dokłada suspend.
+    # TODO(lekcja 9): ten krok ma czekać na człowieka. Zamień go na dwa kroki: `czekaj` (szablon `suspend`
+    # z wyjściem `kto`, valueFrom.supplied) i `zapisz`, który pisze do $OUT/czlowiek "human.approved <kto>".
+    # make zatwierdz W=<przebieg> ustawia `kto` i wznawia linię.
     - name: czlowiek
       inputs:
         parameters: [{name: zlecenie}, {name: proba}]
