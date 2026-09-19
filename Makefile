@@ -1,5 +1,5 @@
 # Wszystko, czego potrzebujesz na warsztacie. `make help` pokazuje listę.
-.PHONY: help klaster setup linia doctor lekcja klucz a2a wyslij zlecenie replay naiwna odbierz port-forward hala test route agents-md przyjecie
+.PHONY: help klaster setup linia doctor lekcja klucz a2a wyslij zlecenie replay naiwna odbierz zatwierdz port-forward hala test route agents-md przyjecie
 
 help:
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  make %-14s %s\n", $$1, $$2}'
@@ -29,6 +29,9 @@ replay: ## Zlecenie bez modelu (nagrana zmiana): make replay Z=rabat
 
 naiwna: ## Naiwna zmiana od człowieka: rabat policzony w OrderService (lekcja 6), przez bramki
 	@REPLAY_MODULE=orders-service scripts/zlecenie.sh rabat replay
+
+zatwierdz: ## Akceptacja człowieka: make zatwierdz W=<przebieg> (argo list -n fabryka)
+	@scripts/zatwierdz.sh $(W) $(KTO)
 
 odbierz: ## Odbierz wyniki z klastra do .sdlc/out/
 	@scripts/odbierz.sh

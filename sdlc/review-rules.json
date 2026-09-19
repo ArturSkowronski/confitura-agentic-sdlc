@@ -5,7 +5,9 @@
       "id": "DET-001",
       "kind": "regex",
       "severity": "blocking",
-      "paths": ["system/"],
+      "paths": [
+        "system/"
+      ],
       "pattern": "(?i)(api[_-]?key|secret|password|token)\\s*=\\s*\"[^\"]{8,}\"",
       "message": "Wygląda na sekret wklejony w kod."
     },
@@ -13,7 +15,9 @@
       "id": "DET-002",
       "kind": "regex",
       "severity": "recommendation",
-      "paths": ["system/"],
+      "paths": [
+        "system/"
+      ],
       "pattern": "catch \\((Exception|Throwable) \\w+\\) \\{\\s*\\}",
       "message": "Pusty catch połyka błąd."
     },
@@ -21,7 +25,9 @@
       "id": "DET-003",
       "kind": "regex",
       "severity": "recommendation",
-      "paths": ["system/"],
+      "paths": [
+        "system/"
+      ],
       "pattern": "(TODO|FIXME|XXX)",
       "message": "TODO w nowym kodzie: dopisz issue albo zrób to teraz."
     },
@@ -29,7 +35,9 @@
       "id": "DET-004",
       "kind": "regex",
       "severity": "blocking",
-      "paths": ["system/payments-service/"],
+      "paths": [
+        "system/payments-service/"
+      ],
       "pattern": "\\.refund\\([^)]*\\)",
       "unless": "idempotency|refund-",
       "message": "Wywołanie operatora kart bez klucza idempotencji (INC-2026-03-14)."
@@ -42,6 +50,15 @@
       "pass": "Test ustawia dane wejściowe i porównuje wynik z wartością wyliczoną ręcznie albo z własnością (np. suma = total + rabat).",
       "fail": "Test wylicza oczekiwaną wartość tą samą formułą co kod produkcyjny, więc przejdzie nawet dla błędnej formuły.",
       "example_fail": "assertEquals(subtotal.percent(10), policy.discountFor(subtotal))"
+    },
+    {
+      "id": "LLM-002",
+      "kind": "llm",
+      "lens": "correctness",
+      "rule": "Każde wywołanie operatora kart ma klucz idempotencji unikalny dla tej operacji i stabilny przy ponowieniu tego samego żądania.",
+      "pass": "Klucz jest wyprowadzony z tożsamości operacji (np. id płatności + numer albo kwota zwrotu), więc dwa różne zwroty mają różne klucze, a ponowienie tego samego zwrotu ten sam.",
+      "fail": "Klucz jest wspólny dla wszystkich zwrotów jednej płatności (drugi zwrot odrzucony) albo losowy przy każdym wywołaniu (ponowienie żądania robi drugi zwrot).",
+      "example_fail": "gateway.refund(payment.id(), amount, \"refund-\" + payment.id())"
     },
     {
       "id": "LLM-003",
