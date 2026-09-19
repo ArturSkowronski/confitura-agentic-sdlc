@@ -1,0 +1,69 @@
+diff --git a/system/pricing-lib/src/main/java/pl/confitura/shop/pricing/ThresholdDiscount.java b/system/pricing-lib/src/main/java/pl/confitura/shop/pricing/ThresholdDiscount.java
+new file mode 100644
+index 0000000..ad3c882
+--- /dev/null
++++ b/system/pricing-lib/src/main/java/pl/confitura/shop/pricing/ThresholdDiscount.java
+@@ -0,0 +1,23 @@
++package pl.confitura.shop.pricing;
++
++import java.util.Objects;
++
++/** Rabat procentowy od całej kwoty, gdy suma przekracza próg (np. 10% powyżej 500 zł). */
++public final class ThresholdDiscount implements DiscountPolicy {
++
++    private final Money threshold;
++    private final int percent;
++
++    public ThresholdDiscount(Money threshold, int percent) {
++        this.threshold = Objects.requireNonNull(threshold, "threshold");
++        if (percent < 0 || percent > 100) {
++            throw new IllegalArgumentException("Procent spoza zakresu 0-100: " + percent);
++        }
++        this.percent = percent;
++    }
++
++    @Override
++    public Money discountFor(Money subtotal) {
++        return subtotal.isGreaterThan(threshold) ? subtotal.percent(percent) : Money.ZERO;
++    }
++}
+diff --git a/system/pricing-lib/src/test/java/pl/confitura/shop/pricing/PriceCalculatorProperties.java b/system/pricing-lib/src/test/java/pl/confitura/shop/pricing/PriceCalculatorProperties.java
+index 76e1b48..5b44262 100644
+--- a/system/pricing-lib/src/test/java/pl/confitura/shop/pricing/PriceCalculatorProperties.java
++++ b/system/pricing-lib/src/test/java/pl/confitura/shop/pricing/PriceCalculatorProperties.java
+@@ -39,6 +39,6 @@ class PriceCalculatorProperties {
+     @Provide
+     Arbitrary<DiscountPolicy> policies() {
+         // Każda nowa polityka rabatowa powinna trafić na tę listę.
+-        return Arbitraries.of(new NoDiscount());
++        return Arbitraries.of(new NoDiscount(), new ThresholdDiscount(Money.of("500.00"), 10));
+     }
+ }
+diff --git a/system/pricing-lib/src/test/java/pl/confitura/shop/pricing/ThresholdDiscountTest.java b/system/pricing-lib/src/test/java/pl/confitura/shop/pricing/ThresholdDiscountTest.java
+new file mode 100644
+index 0000000..c1038b2
+--- /dev/null
++++ b/system/pricing-lib/src/test/java/pl/confitura/shop/pricing/ThresholdDiscountTest.java
+@@ -0,0 +1,22 @@
++package pl.confitura.shop.pricing;
++
++import static org.junit.jupiter.api.Assertions.assertEquals;
++
++import org.junit.jupiter.api.Test;
++
++class ThresholdDiscountTest {
++
++    private final ThresholdDiscount tenPercentAbove500 = new ThresholdDiscount(Money.of("500.00"), 10);
++
++    @Test
++    void noDiscountAtOrBelowThreshold() {
++        assertEquals(Money.ZERO, tenPercentAbove500.discountFor(Money.of("500.00")));
++        assertEquals(Money.ZERO, tenPercentAbove500.discountFor(Money.of("120.00")));
++    }
++
++    @Test
++    void tenPercentOfWholeAmountAboveThreshold() {
++        assertEquals(Money.of("60.00"), tenPercentAbove500.discountFor(Money.of("600.00")));
++        assertEquals(Money.of("50.00"), tenPercentAbove500.discountFor(Money.of("500.01")));
++    }
++}

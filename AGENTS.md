@@ -36,7 +36,7 @@ Conventions (docs/conventions.md):
 - `architecture`: nominal owner @confitura-shop/platform, actual Marek Lewandowski (100%); changes in 30 days: 0
 - `orders-service`: nominal owner @confitura-shop/orders, actual Marek Lewandowski (50%), Tomek Zieliński (50%); changes in 30 days: 1
 - `payments-service`: nominal owner @confitura-shop/payments, actual Ola Kamińska (56%), Paweł Nowak (28%), Marek Lewandowski (14%); changes in 30 days: 4
-- `pricing-lib`: nominal owner @confitura-shop/pricing, actual Kasia Wiśniewska (75%), Tomek Zieliński (25%); changes in 30 days: 0
+- `pricing-lib`: nominal owner @confitura-shop/pricing, actual Kasia Wiśniewska (60%), Artur Skowroński (20%), Tomek Zieliński (20%); changes in 30 days: 1
 
 ## L4 Decisions
 

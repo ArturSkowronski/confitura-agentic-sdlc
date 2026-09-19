@@ -1,0 +1,5 @@
+.git
+**/target
+.sdlc
+**/__pycache__
+**/.jqwik-database

@@ -1,0 +1,178 @@
+# Linia produkcyjna fabryki (lekcja 5). Jeden przebieg = jedna próba jednego zlecenia:
+#   📥 przyjęcie (spec, routing) → 🤖 wykonawca (kagent przez A2A albo replay) → 📦 zmiana (gałąź + łatka w /work/out)
+# Uruchomienie: make zlecenie Z=rabat [AGENT=replay]. Graf i logi: hala (Argo UI).
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: fabryka
+  namespace: fabryka
+spec:
+  serviceAccountName: fabryka
+  entrypoint: linia
+  arguments:
+    parameters:
+      - {name: zlecenie, value: rabat}
+      - {name: agent, value: kagent}      # kagent | replay
+      - {name: proba, value: "1"}
+      - {name: modul, value: ""}          # tylko replay: wymuś moduł nagrania (make naiwna)
+  volumes:
+    - name: work
+      persistentVolumeClaim: {claimName: warsztat}
+  templates:
+    - name: linia
+      inputs:
+        parameters: [{name: zlecenie}, {name: agent}, {name: proba}, {name: modul, value: ""}]
+      steps:
+        - - name: przygotuj
+            template: przygotuj
+            arguments: {parameters: [{name: zlecenie, value: "{{inputs.parameters.zlecenie}}"}, {name: proba, value: "{{inputs.parameters.proba}}"}]}
+        - - name: przyjecie
+            template: przyjecie
+            arguments: {parameters: [{name: zlecenie, value: "{{inputs.parameters.zlecenie}}"}, {name: proba, value: "{{inputs.parameters.proba}}"}]}
+        - - name: wykonawca
+            template: wykonawca
+            when: "{{steps.przyjecie.outputs.parameters.accepted}} == true"
+            arguments: {parameters: [{name: zlecenie, value: "{{inputs.parameters.zlecenie}}"}, {name: agent, value: "{{inputs.parameters.agent}}"}, {name: proba, value: "{{inputs.parameters.proba}}"}, {name: modul, value: "{{inputs.parameters.modul}}"}]}
+        - - name: zmiana
+            template: zmiana
+            when: "{{steps.przyjecie.outputs.parameters.accepted}} == true"
+            arguments: {parameters: [{name: zlecenie, value: "{{inputs.parameters.zlecenie}}"}, {name: agent, value: "{{inputs.parameters.agent}}"}, {name: proba, value: "{{inputs.parameters.proba}}"}]}
+
+    # Każdy krok to ten sam obraz i ten sam dysk. Różni się tylko skrypt.
+    - name: krok
+      inputs:
+        parameters: [{name: skrypt}, {name: zlecenie}, {name: agent, value: kagent}, {name: proba, value: "1"}]
+      container:
+        image: fabryka-toolbox:lekcja
+        imagePullPolicy: IfNotPresent
+        command: [bash, -eo, pipefail, -c]
+        args: ["{{inputs.parameters.skrypt}}"]
+        workingDir: /work/repo
+        env:
+          - {name: ZLECENIE, value: "{{inputs.parameters.zlecenie}}"}
+          - {name: AGENT, value: "{{inputs.parameters.agent}}"}
+          - {name: ATTEMPT, value: "{{inputs.parameters.proba}}"}
+          - {name: FABRYKA_RUN, value: "{{workflow.name}}"}
+          - {name: OUT, value: "/work/out/{{inputs.parameters.zlecenie}}/proba-{{inputs.parameters.proba}}"}
+          - {name: OUTPUTS_DIR, value: /tmp/outputs}
+          - {name: PYTHONDONTWRITEBYTECODE, value: "1"}
+          - {name: KAGENT_URL, value: "http://kagent-controller.kagent.svc:8083"}
+          - {name: KAGENT_NS, value: fabryka}
+          - {name: A2A_USER, value: "linia@fabryka"}
+        volumeMounts: [{name: work, mountPath: /work}]
+        resources:
+          requests: {cpu: 200m, memory: 512Mi}
+          limits: {memory: 2Gi}
+
+    - name: przygotuj
+      inputs:
+        parameters: [{name: zlecenie}, {name: proba}]
+      steps:
+        - - name: run
+            template: krok
+            arguments:
+              parameters:
+                - {name: zlecenie, value: "{{inputs.parameters.zlecenie}}"}
+                - {name: proba, value: "{{inputs.parameters.proba}}"}
+                - name: skrypt
+                  value: |
+                    # Gałąź zlecenia na kopii repo. Próba 1 zaczyna od main, poprawka kontynuuje gałąź.
+                    git config user.name "agent[bot]"; git config user.email "agent@fabryka"
+                    if [ "$ATTEMPT" = "1" ]; then git checkout -q main && git switch -q -C "agent/$ZLECENIE"; else git checkout -q "agent/$ZLECENIE"; fi
+                    rm -rf .sdlc && mkdir -p .sdlc "$OUT" && : > /work/events.jsonl
+                    python3 sdlc/zlecenia.py "$ZLECENIE" > .sdlc/zlecenie.json
+                    echo "zlecenie: $(jq -r .title .sdlc/zlecenie.json) (próba $ATTEMPT, gałąź $(git branch --show-current))"
+
+    - name: przyjecie
+      inputs:
+        parameters: [{name: zlecenie}, {name: proba}]
+      outputs:
+        parameters:
+          - name: accepted
+            valueFrom: {parameter: "{{steps.run.outputs.parameters.accepted}}"}
+      steps:
+        - - name: run
+            template: krok-z-wyjsciem
+            arguments:
+              parameters:
+                - {name: zlecenie, value: "{{inputs.parameters.zlecenie}}"}
+                - {name: proba, value: "{{inputs.parameters.proba}}"}
+                - name: skrypt
+                  value: |
+                    title=$(jq -r .title .sdlc/zlecenie.json); body=$(jq -r .body .sdlc/zlecenie.json)
+                    python3 sdlc/context.py route --title "$title" --body "$body" --out-md .sdlc/route.md
+                    python3 sdlc/intake.py --title "$title" --body "$body" --out-md .sdlc/intake.md
+                    cp .sdlc/intake.md .sdlc/route.md "$OUT/"
+                    if [ "$(cat /tmp/outputs/accepted)" != "true" ]; then echo "Zlecenie odesłane do autora: $OUT/intake.md"; fi
+
+    - name: wykonawca
+      inputs:
+        parameters: [{name: zlecenie}, {name: agent}, {name: proba}, {name: modul, value: ""}]
+      steps:
+        - - name: run
+            template: krok
+            arguments:
+              parameters:
+                - {name: zlecenie, value: "{{inputs.parameters.zlecenie}}"}
+                - {name: agent, value: "{{inputs.parameters.agent}}"}
+                - {name: proba, value: "{{inputs.parameters.proba}}"}
+                - name: skrypt
+                  value: |
+                    title=$(jq -r .title .sdlc/zlecenie.json); body=$(jq -r .body .sdlc/zlecenie.json)
+                    python3 sdlc/agent.py prompt --title "$title" --body "$body" > /dev/null
+                    REPLAY_MODULE="{{inputs.parameters.modul}}" python3 sdlc/agent.py run
+                    # Agent nie może dotykać bramek ani wyroczni. Serwer to odrzuca, a tu sprawdzamy jeszcze raz.
+                    touched=$(git status --porcelain --untracked-files=all | awk '{print $2}' | grep -vE '^\.sdlc/|__pycache__' || true)
+                    echo "$touched"
+                    if echo "$touched" | grep -qE '^(sdlc/|platforma/|system/architecture/|scenarios/)'; then echo "::błąd:: agent zmienił bramki albo wyrocznię"; exit 1; fi
+                    if [ -z "$touched" ]; then echo "::błąd:: agent nic nie zmienił"; exit 1; fi
+
+    - name: zmiana
+      inputs:
+        parameters: [{name: zlecenie}, {name: agent}, {name: proba}]
+      steps:
+        - - name: run
+            template: krok
+            arguments:
+              parameters:
+                - {name: zlecenie, value: "{{inputs.parameters.zlecenie}}"}
+                - {name: agent, value: "{{inputs.parameters.agent}}"}
+                - {name: proba, value: "{{inputs.parameters.proba}}"}
+                - name: skrypt
+                  value: |
+                    title=$(jq -r .title .sdlc/zlecenie.json)
+                    git add -A system docs && git commit -q -m "agent($AGENT): $title (próba $ATTEMPT)"
+                    git format-patch -q main --stdout > "$OUT/zmiana.patch"
+                    cp .sdlc/pr-body.md "$OUT/opis.md" 2>/dev/null || echo "Zmiana wygenerowana przez agenta." > "$OUT/opis.md"
+                    cp .sdlc/agent-events.jsonl "$OUT/" 2>/dev/null || true; cp /work/events.jsonl "$OUT/narzedzia.jsonl" 2>/dev/null || true
+                    echo "Zmiana na gałęzi agent/$ZLECENIE: $(git rev-parse --short HEAD). Łatka: $OUT/zmiana.patch"; git show --stat HEAD | tail -n +5
+
+    # Wariant kroku z wyjściem `accepted` (Argo czyta plik).
+    - name: krok-z-wyjsciem
+      inputs:
+        parameters: [{name: skrypt}, {name: zlecenie}, {name: agent, value: kagent}, {name: proba, value: "1"}]
+      outputs:
+        parameters:
+          - name: accepted
+            valueFrom: {path: /tmp/outputs/accepted, default: "false"}
+      container:
+        image: fabryka-toolbox:lekcja
+        imagePullPolicy: IfNotPresent
+        command: [bash, -eo, pipefail, -c]
+        args: ["mkdir -p /tmp/outputs; {{inputs.parameters.skrypt}}"]
+        workingDir: /work/repo
+        env:
+          - {name: ZLECENIE, value: "{{inputs.parameters.zlecenie}}"}
+          - {name: AGENT, value: "{{inputs.parameters.agent}}"}
+          - {name: ATTEMPT, value: "{{inputs.parameters.proba}}"}
+          - {name: FABRYKA_RUN, value: "{{workflow.name}}"}
+          - {name: OUT, value: "/work/out/{{inputs.parameters.zlecenie}}/proba-{{inputs.parameters.proba}}"}
+          - {name: OUTPUTS_DIR, value: /tmp/outputs}
+          - {name: PYTHONDONTWRITEBYTECODE, value: "1"}
+          - {name: KAGENT_URL, value: "http://kagent-controller.kagent.svc:8083"}
+          - {name: KAGENT_NS, value: fabryka}
+          - {name: A2A_USER, value: "linia@fabryka"}
+        volumeMounts: [{name: work, mountPath: /work}]
+        resources:
+          requests: {cpu: 200m, memory: 512Mi}
+          limits: {memory: 2Gi}

@@ -1,0 +1,45 @@
+diff --git a/system/orders-service/src/main/java/pl/confitura/shop/orders/domain/OrderService.java b/system/orders-service/src/main/java/pl/confitura/shop/orders/domain/OrderService.java
+index 32d6720..d6cbc73 100644
+--- a/system/orders-service/src/main/java/pl/confitura/shop/orders/domain/OrderService.java
++++ b/system/orders-service/src/main/java/pl/confitura/shop/orders/domain/OrderService.java
+@@ -1,7 +1,9 @@
+ package pl.confitura.shop.orders.domain;
+ 
++import java.math.BigDecimal;
+ import java.util.List;
+ import java.util.UUID;
++import pl.confitura.shop.pricing.Money;
+ import pl.confitura.shop.pricing.PriceCalculator;
+ import pl.confitura.shop.pricing.Quote;
+ 
+@@ -20,6 +22,11 @@ public class OrderService {
+             throw new IllegalArgumentException("Zamówienie musi mieć co najmniej jedną pozycję");
+         }
+         Quote quote = priceCalculator.quote(lines.stream().map(OrderLine::lineTotal).toList());
++        // Rabat 10% dla zamówień powyżej 500 zł
++        if (quote.subtotal().amount().compareTo(new BigDecimal("500")) > 0) {
++            BigDecimal discount = quote.subtotal().amount().multiply(new BigDecimal("0.10"));
++            quote = new Quote(quote.subtotal(), new Money(discount), new Money(quote.subtotal().amount().subtract(discount)));
++        }
+         Order order = new Order(UUID.randomUUID().toString(), customerId, lines, quote, OrderStatus.PLACED);
+         repository.save(order);
+         return order;
+diff --git a/system/orders-service/src/test/java/pl/confitura/shop/orders/domain/OrderServiceTest.java b/system/orders-service/src/test/java/pl/confitura/shop/orders/domain/OrderServiceTest.java
+index 22dc53c..4756377 100644
+--- a/system/orders-service/src/test/java/pl/confitura/shop/orders/domain/OrderServiceTest.java
++++ b/system/orders-service/src/test/java/pl/confitura/shop/orders/domain/OrderServiceTest.java
+@@ -27,6 +27,14 @@ class OrderServiceTest {
+         assertTrue(repository.findById(order.id()).isPresent());
+     }
+ 
++    @Test
++    void appliesTenPercentDiscountAbove500() {
++        Order order = service.placeOrder("c-2", List.of(new OrderLine("KONFITURA-ZESTAW", 6, Money.of("100.00"))));
++
++        assertEquals(Money.of("60.00"), order.quote().discount());
++        assertEquals(Money.of("540.00"), order.quote().total());
++    }
++
+     @Test
+     void rejectsEmptyOrder() {
+         assertThrows(IllegalArgumentException.class, () -> service.placeOrder("c-1", List.of()));
