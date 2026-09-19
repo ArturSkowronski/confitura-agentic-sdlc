@@ -1,5 +1,5 @@
 # Wszystko, czego potrzebujesz na warsztacie. `make help` pokazuje listę.
-.PHONY: help klaster setup linia doctor lekcja klucz a2a wyslij zlecenie replay naiwna odbierz zatwierdz port-forward hala test route agents-md przyjecie
+.PHONY: help klaster setup linia doctor lekcja klucz a2a wyslij zlecenie replay naiwna odbierz zatwierdz klucze-cosign ksiega-verify port-forward hala test route agents-md przyjecie
 
 help:
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  make %-14s %s\n", $$1, $$2}'
@@ -7,9 +7,10 @@ help:
 klaster: ## Postaw klaster fabryki: kind + Argo Workflows + kagent + Kyverno + Jaeger (idempotentne)
 	@scripts/klaster.sh
 
-setup: ## Zbuduj obrazy fabryki, załaduj do kind, wdróż warsztat (dysk, magazyn, serwer MCP, wykonawca) i linię
+setup: ## Zbuduj obrazy fabryki, załaduj do kind, wdróż warsztat (dysk, magazyn, serwer MCP, agenci), linię, politykę i klucz
 	@scripts/obrazy.sh
-	@kubectl apply -f platforma/linia/ >/dev/null
+	@kubectl apply -f platforma/linia/ -f platforma/kyverno/agent-narzedzia.yaml >/dev/null
+	@scripts/klucze-cosign.sh
 	@kubectl apply -f platforma/warsztat/pvc.yaml -f platforma/warsztat/magazyn.yaml -f platforma/warsztat/mcpserver.yaml >/dev/null
 	@kubectl apply -f platforma/kagent/agent-przyjecie.yaml -f platforma/kagent/agent-wykonawca.yaml -f platforma/kagent/agent-recenzent.yaml >/dev/null
 	@kubectl rollout status -n fabryka deploy/magazyn --timeout=120s >/dev/null
@@ -31,10 +32,17 @@ naiwna: ## Naiwna zmiana od człowieka: rabat policzony w OrderService (lekcja 6
 	@REPLAY_MODULE=orders-service scripts/zlecenie.sh rabat replay
 
 zatwierdz: ## Akceptacja człowieka: make zatwierdz W=<przebieg> (argo list -n fabryka)
-	@scripts/zatwierdz.sh $(W) $(KTO)
+	@scripts/zatwierdz.sh "$(W)" "$(KTO)"
 
 odbierz: ## Odbierz wyniki z klastra do .sdlc/out/
 	@scripts/odbierz.sh
+
+klucze-cosign: ## Para kluczy fabryki do podpisu księgi (Secret fabryka-cosign + cosign.pub w repo)
+	@scripts/klucze-cosign.sh
+
+ksiega-verify: ## Sprawdź łańcuch i podpis księgi: make ksiega-verify F=.sdlc/out/rabat/proba-1/ledger.jsonl
+	-@python3 sdlc/ledger.py --file "$(F)" verify
+	@cosign verify-blob --key platforma/linia/cosign/cosign.pub --bundle "$(F:.jsonl=.sigstore.json)" --insecure-ignore-tlog "$(F)" 2>&1 | tail -1 | sed "s/^/podpis: /"
 
 wyslij: ## Wyślij snapshot repo do klastra (/work/repo w magazynie)
 	@scripts/wyslij.sh

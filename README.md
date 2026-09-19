@@ -42,7 +42,7 @@ jest w następnym commicie. Zostałeś w tyle? `make lekcja N=4` ustawia gałą�
 | 7 | [Wyrocznia](warsztat/lekcja-07-wyrocznia.md) | Holdout zużywa się z każdym użyciem |
 | 8 | [Ryzyko, review, poprawki](warsztat/lekcja-08-review.md) | Każda poprawka przesuwa agenta od wymagania w stronę bramki |
 | 9 | [Światło, WIP i polityka](warsztat/lekcja-09-polityka.md) | Człowiek to węzeł z rolą; linię rysuje plik |
-| 10 | Ślad i hala | Agent może proponować prawa, ale nie może ich uchwalać |
+| 10 | [Ślad i hala](warsztat/lekcja-10-slad.md) | Agent może proponować prawa, ale nie może ich uchwalać |
 
 ## Co jest w środku
 
