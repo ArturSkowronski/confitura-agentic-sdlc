@@ -36,7 +36,7 @@ jest w następnym commicie. Zostałeś w tyle? `make lekcja N=4` ustawia gałą�
 | 1 | [Klaster i pierwszy agent](warsztat/lekcja-01-klaster.md) | Agent to zasób w klastrze, nie skrypt na laptopie |
 | 2 | [Warsztat i narzędzia](warsztat/lekcja-02-warsztat.md) | Uprawnienia agenta to lista narzędzi, nie prompt |
 | 3 | [Kontekst L1–L5](warsztat/lekcja-03-kontekst.md) | Własność pojęcia wygrywa z częstością słów |
-| 4 | Przyjęcie zlecenia | Fabryka nie przyjmuje zlecenia bez specyfikacji |
+| 4 | [Przyjęcie zlecenia](warsztat/lekcja-04-przyjecie.md) | Fabryka nie przyjmuje zlecenia bez specyfikacji |
 | 5 | Linia | Linia to wersjonowany graf, nie skrypt |
 | 6 | Kontrola jakości | Zielony build dowodzi tylko, że model zgadza się sam ze sobą |
 | 7 | Wyrocznia | Holdout zużywa się z każdym użyciem |
