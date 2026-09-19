@@ -1,6 +1,6 @@
-# Linia produkcyjna fabryki (lekcja 6). Jeden przebieg = jedna próba jednego zlecenia:
+# Linia produkcyjna fabryki (lekcja 7). Jeden przebieg = jedna próba jednego zlecenia:
 #   📥 przyjęcie (spec, routing) → 🤖 wykonawca (kagent przez A2A albo replay) → 📦 zmiana (gałąź + łatka w /work/out)
-#   → 🧱 kontrola jakości (build+ArchUnit+osłabianie testów ‖ sekrety, potem mutacje) → wynik
+#   → 🧱 kontrola jakości (build+ArchUnit+osłabianie testów ‖ sekrety, potem 🎯 wyrocznia, potem mutacje) → wynik
 # Uruchomienie: make zlecenie Z=rabat [AGENT=replay]. Graf i logi: hala (Argo UI).
 apiVersion: argoproj.io/v1alpha1
 kind: WorkflowTemplate
@@ -84,9 +84,27 @@ spec:
                     if [ $code -eq 0 ]; then printf '### 🔑 Sekrety: ✅ gitleaks nic nie znalazł\n' > "$OUT/kontrola-3-sekrety.md"
                     else printf '### 🔑 Sekrety: ❌ gitleaks znalazł sekret w commitach zmiany\n' > "$OUT/kontrola-3-sekrety.md"; fi
                     echo "$code" > "$OUT/kontrola-3-sekrety.exit"; exit $code
-          - name: mutacje
+          - name: wyrocznia
             template: krok
             dependencies: [build]
+            continueOn: {failed: true}
+            arguments:
+              parameters:
+                - {name: zlecenie, value: "{{inputs.parameters.zlecenie}}"}
+                - {name: proba, value: "{{inputs.parameters.proba}}"}
+                - name: skrypt
+                  value: |
+                    # Scenariusze zawsze z main, nigdy z gałęzi zmiany: agent nie może ich zmienić ani dopisać.
+                    rm -rf scenarios && git checkout -q main -- scenarios
+                    (cd system && mvn -B -q install -DskipTests > /dev/null 2>&1)
+                    title=$(jq -r .title .sdlc/zlecenie.json)
+                    set +e; python3 sdlc/scenarios.py run --work-order "$title" > "$OUT/kontrola-5-wyrocznia.md"; code=$?; set -e
+                    cat "$OUT/kontrola-5-wyrocznia.md"; cp .sdlc/scenarios.json "$OUT/wyrocznia.json"
+                    git checkout -q -- scenarios 2>/dev/null || true
+                    echo "$code" > "$OUT/kontrola-5-wyrocznia.exit"; exit $code
+          - name: mutacje
+            template: krok
+            dependencies: [wyrocznia]
             continueOn: {failed: true}
             arguments:
               parameters:
@@ -198,6 +216,8 @@ spec:
                     title=$(jq -r .title .sdlc/zlecenie.json); body=$(jq -r .body .sdlc/zlecenie.json)
                     python3 sdlc/agent.py prompt --title "$title" --body "$body" > /dev/null
                     REPLAY_MODULE="{{inputs.parameters.modul}}" python3 sdlc/agent.py run
+                    # Wyrocznia: czy agent próbował zajrzeć do scenariuszy? Serwer odrzuca odczyt, ale próbę zapisuje.
+                    if grep -q holdout.peek /work/events.jsonl 2>/dev/null; then echo "::uwaga:: agent zaglądał do scenarios/ (holdout.peek), zapisane"; grep holdout.peek /work/events.jsonl > "$OUT/holdout-peek.jsonl"; fi
                     # Agent nie może dotykać bramek ani wyroczni. Serwer to odrzuca, a tu sprawdzamy jeszcze raz.
                     touched=$(git status --porcelain --untracked-files=all | awk '{print $2}' | grep -vE '^\.sdlc/|__pycache__' || true)
                     echo "$touched"
