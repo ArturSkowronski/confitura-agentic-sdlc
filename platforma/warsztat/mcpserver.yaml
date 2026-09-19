@@ -22,8 +22,9 @@ spec:
     env:
       WORK_DIR: /work/repo
       EVENTS_FILE: /work/events.jsonl
-      # TODO(lekcja 2): wpisz ścieżki, których agent nie może zmieniać: bramki, linia, wyrocznia.
-      PROTECTED_PATHS: ""
+      # Rozwiązanie lekcji 2: bramki, linia i wyrocznia są poza zasięgiem zapisu.
+      PROTECTED_PATHS: "sdlc platforma system/architecture scenarios"
+      # TODO(lekcja 7): wyrocznia ma być też poza zasięgiem odczytu.
       HIDDEN_PATHS: ""
     volumeMounts: [{name: work, mountPath: /work}]
     volumes:
