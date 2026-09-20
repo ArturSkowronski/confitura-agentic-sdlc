@@ -41,6 +41,13 @@ obrazów z rozgrzanym Mavenem) 6 min, replay rabatu z pełną linią 1,5 min, pr
 Koszt: próba wykonawcy na Sonnet 5 to rząd 0,3 do 0,8 USD, soczewki review grosze. 10 osób ×
 6 przebiegów mieści się w 60 USD.
 
+## Dwa decki
+
+| Plik | Do czego |
+|---|---|
+| `warsztat/slajdy.html` | tezy i odsłony, 25 slajdów: na projektor między ćwiczeniami |
+| `warsztat/przewodnik.html` | krok po kroku, 45 slajdów: każda lekcja w czterech krokach (gdzie jesteśmy, rozejrzyj się, ćwiczenie, sprawdź) z komendami, fragmentami kodu i oczekiwanym wyjściem; do wysłania uczestnikom i na drugi ekran |
+
 ## Przebieg (120 min)
 
 | Czas | Blok | Slajdy |
