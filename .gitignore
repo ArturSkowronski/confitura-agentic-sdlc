@@ -9,3 +9,4 @@ target/
 node_modules/
 warsztat/keynote/*.pptx
 warsztat/grafiki/out/
+warsztat/keynote/*.key
