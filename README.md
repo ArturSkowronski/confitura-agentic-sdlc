@@ -54,7 +54,7 @@ jest w następnym commicie. Zostałeś w tyle? `make lekcja N=4` ustawia gałą�
 | `sdlc/` | Mózg fabryki w Pythonie (instrukcje dla modeli po angielsku, odpowiedzi po polsku): kontekst, przyjęcie, agent, bramki, ryzyko, review, księga. `a2a.py` woła agentów kagent |
 | `platforma/` | Manifesty klastra: kagent (agenci, model), warsztat (narzędzia MCP), linia (Argo), Kyverno, Jaeger |
 | `zlecenia/` | Zlecenia dla fabryki (od lekcji 4) |
-| `warsztat/` | Materiały lekcji, slajdy (`slajdy.html` tezy, `przewodnik.html` krok po kroku), notatki prowadzącego |
+| `warsztat/` | Materiały lekcji, slajdy (`slajdy.html` tezy, `przewodnik.html` przewodnik krok po kroku z kartą wykonawcy), notatki prowadzącego |
 
 ## Licencja
 
