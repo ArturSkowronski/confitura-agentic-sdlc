@@ -42,12 +42,17 @@ obrazów z rozgrzanym Mavenem) 6 min, replay rabatu z pełną linią 1,5 min, pr
 Koszt: próba wykonawcy na Sonnet 5 to rząd 0,3 do 0,8 USD, soczewki review grosze. 10 osób ×
 6 przebiegów mieści się w 60 USD.
 
-## Dwa decki
+## Trzy decki
 
 | Plik | Do czego |
 |---|---|
-| `warsztat/slajdy.html` | 25 slajdów z tezami i odsłonami: na projektor między ćwiczeniami |
+| `warsztat/keynote/fabryka-od-podstaw.pptx` | 17 slajdów na projektor, stylistyka Visdoma, ilustracje w stylu JVM Weekly. Keynote otwiera `.pptx` natywnie. Budowa: `cd warsztat/keynote && npm install && node build.mjs` |
 | `warsztat/przewodnik.html` | 48 slajdów krok po kroku: zimne otwarcie, każda lekcja w czterech krokach (gdzie jesteśmy, rozejrzyj się, ćwiczenie, sprawdź), komendy i oczekiwane wyjście. Do wysłania uczestnikom i na drugi ekran |
+| `warsztat/slajdy.html` | 25 slajdów z tezami i odsłonami, wersja sprzed przebudowy. Zostaje jako zapas |
+
+Wszystkie trzy niosą tę samą kartę wykonawcy, więc puenta jest ta sama niezależnie od tego,
+z czego prowadzisz. Ilustracje siedzą w `warsztat/grafiki/` (`gen.py`, `prompts.md`,
+`optimize.sh`); oryginały 4 MB zostają lokalnie, do repo idą JPEG-i z `deck/`.
 
 ### Nić przewodnia: karta wykonawcy
 
