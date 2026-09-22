@@ -26,6 +26,7 @@ Między odsłonami są slajdy z tezą. Każda teza ma dowód z repo, nie z inter
 
 | Kiedy | Co |
 |---|---|
+| do 22.09 | **Dopisz rozwiązanie ćwiczenia 6**: reguły ArchUnit `money_arithmetic_only_in_pricing` nie ma na `main`, zostało samo TODO. Slajd 28 przewodnika ma gotową wersję. Sprawdź `make test` (zielone) i `make naiwna` (czerwone), potem `scripts/restack.sh`. |
 | do 22.09 | Wypchnij repo z tagami `lekcja-01` … `lekcja-10`: `scripts/restack.sh --push`. `main` = lekcja 10. |
 | do 22.09 | Opublikuj obrazy `fabryka-toolbox` i `fabryka-warsztat` na ghcr.io (plan B dla osób, którym build nie przejdzie) i dopisz w SETUP.md. |
 | do 22.09 | Wyślij mail z setupem (`warsztat/mail-setup.md`). Uzupełnij salę. |
@@ -45,8 +46,37 @@ Koszt: próba wykonawcy na Sonnet 5 to rząd 0,3 do 0,8 USD, soczewki review gro
 
 | Plik | Do czego |
 |---|---|
-| `warsztat/slajdy.html` | tezy i odsłony, 25 slajdów: na projektor między ćwiczeniami |
-| `warsztat/przewodnik.html` | krok po kroku, 45 slajdów: każda lekcja w czterech krokach (gdzie jesteśmy, rozejrzyj się, ćwiczenie, sprawdź) z komendami, fragmentami kodu i oczekiwanym wyjściem; do wysłania uczestnikom i na drugi ekran |
+| `warsztat/slajdy.html` | 25 slajdów z tezami i odsłonami: na projektor między ćwiczeniami |
+| `warsztat/przewodnik.html` | 48 slajdów krok po kroku: zimne otwarcie, każda lekcja w czterech krokach (gdzie jesteśmy, rozejrzyj się, ćwiczenie, sprawdź), komendy i oczekiwane wyjście. Do wysłania uczestnikom i na drugi ekran |
+
+### Nić przewodnia: karta wykonawcy
+
+Przewodnik trzyma się jednej klamry. **Zimne otwarcie** (slajdy 1 i 2) pokazuje zieloną łatkę
+w złym module, przyjętą bez człowieka, i odsłania, że wszystko zadziałało zgodnie z regułami,
+tyle że reguł nie było. Ta sama łatka wraca w lekcji 3 jako tabela routingu, w lekcji 5 jako
+przebieg z prawdziwym agentem i w lekcji 6 jako czerwona bramka.
+
+**Po każdym ćwiczeniu karta wykonawcy dostaje jedną nową regułę** i etykietę mówiącą, czym ta
+reguła jest naprawdę: słowo, kontekst, ściana, bramka, polityka albo ślad. Karta rośnie
+na czwartym kroku każdej lekcji, od jednej reguły do dziesięciu.
+
+| # | Lekcja | Reguła | Rodzaj |
+|---|---|---|---|
+| 1 | 1 | Pytaj o to, czego brakuje. Nie proponuj rozwiązań. | słowo |
+| 2 | 2 | Do `sdlc/`, `platforma/`, `system/architecture` nie zapiszesz. | ściana |
+| 3 | 3 | Rabat, cena i kwota należą do pricing-lib. ADR-0001. | kontekst |
+| 4 | 4 | Bez kryteriów akceptacji nie dostaniesz zlecenia. | bramka |
+| 5 | 5 | Zadanie dostajesz przez A2A. Klucza do modelu nie zobaczysz. | ściana |
+| 6 | 6 | Poza pakietem pricing nie liczysz na `BigDecimal`. | bramka |
+| 7 | 7 | Katalog `scenarios/` dla ciebie nie istnieje. | ściana |
+| 8 | 8 | Klucz idempotencji unikalny dla zwrotu, stabilny przy ponowieniu. | bramka |
+| 9 | 9 | Ryzyko high i critical czeka na człowieka. Narzędzia: tylko warsztat. | polityka |
+| 10 | 10 | Każde wywołanie jest w podpisanej księdze. | ślad |
+
+Na slajdzie 4 zapowiadasz **zakład**: ile z dziesięciu reguł okaże się zwykłym zdaniem w prompcie?
+Slajd 46 rozstrzyga: jedna. Dziewięć pozostałych działa, choćby model miał gorszy dzień albo
+ktoś podmienił prompt. To jest puenta warsztatu, a reguła 3 kontra reguła 6 (ta sama treść
+ADR-0001, raz jako kontekst, raz jako bramka) jest jej najkrótszym dowodem.
 
 ## Przebieg (120 min)
 
