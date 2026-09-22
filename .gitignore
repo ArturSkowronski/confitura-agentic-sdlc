@@ -6,3 +6,6 @@
 platforma/**/cosign.key
 platforma/linia/cosign/cosign.key
 target/
+node_modules/
+warsztat/keynote/*.pptx
+warsztat/grafiki/out/

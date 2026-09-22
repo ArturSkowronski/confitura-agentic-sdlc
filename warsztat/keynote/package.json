@@ -1,0 +1,7 @@
+{
+  "name": "confitura-keynote",
+  "private": true,
+  "type": "module",
+  "description": "Deck prezentacyjny warsztatu w stylistyce Visdoma. pptx otwiera sie w Keynote natywnie.",
+  "dependencies": { "pptxgenjs": "^4.0.1" }
+}
