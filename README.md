@@ -43,6 +43,7 @@ jest w następnym commicie. Zostałeś w tyle? `make lekcja N=4` ustawia gałą�
 | 8 | [Ryzyko, review, poprawki](warsztat/lekcja-08-review.md) | Każda poprawka przesuwa agenta od wymagania w stronę bramki |
 | 9 | [Światło, WIP i polityka](warsztat/lekcja-09-polityka.md) | Człowiek to węzeł z rolą; linię rysuje plik |
 | 10 | [Ślad i hala](warsztat/lekcja-10-slad.md) | Agent może proponować prawa, ale nie może ich uchwalać |
+| finał | [Fabryka na GitHubie](warsztat/final-github.md) | Issue to zlecenie, PR to wynik, a Actions sprawdzają pochodzenie |
 
 ## Co jest w środku
 
@@ -52,7 +53,8 @@ jest w następnym commicie. Zostałeś w tyle? `make lekcja N=4` ustawia gałą�
 | `scenarios/` | Wyrocznia: scenariusze holdout pisane przez produkt. Agent ich nie widzi |
 | `docs/adr/`, `ops/incidents/`, `docs/conventions.md` | Wiedza organizacji: decyzje, incydent, konwencje |
 | `sdlc/` | Mózg fabryki w Pythonie (instrukcje dla modeli po angielsku, odpowiedzi po polsku): kontekst, przyjęcie, agent, bramki, ryzyko, review, księga. `a2a.py` woła agentów kagent |
-| `platforma/` | Manifesty klastra: kagent (agenci, model), warsztat (narzędzia MCP), linia (Argo), Kyverno, Jaeger |
+| `platforma/` | Manifesty klastra: kagent (agenci, model), warsztat (narzędzia MCP), linia (Argo), Kyverno, Jaeger, poller GitHuba |
+| `.github/workflows/fabryka.yml` | Finał: bramki fabryki na GitHubie (build, wyrocznia, review, pochodzenie księgi) |
 | `zlecenia/` | Zlecenia dla fabryki (od lekcji 4) |
 | `warsztat/` | Materiały lekcji, notatki prowadzącego i trzy decki: `keynote/` (pptx w stylistyce Visdoma), `przewodnik.html` (48 slajdów krok po kroku z kartą wykonawcy), `slajdy.html` (tezy) |
 | `warsztat/grafiki/` | Dwanaście ilustracji w stylu JVM Weekly: sceny w `prompts.md`, generator `gen.py` |

@@ -7,14 +7,17 @@ import unittest
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 import a2a
+import slad
 
 
 class FakeKagent(BaseHTTPRequestHandler):
     seen = []
+    traceparents = []
 
     def do_POST(self):
         body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
         FakeKagent.seen.append((self.path, self.headers.get("X-User-Id"), body))
+        FakeKagent.traceparents.append(self.headers.get("traceparent"))
         text = body["params"]["message"]["parts"][0]["text"]
         if text == "błąd":
             result = {"jsonrpc": "2.0", "id": body["id"], "error": {"code": -32603, "message": "model padł"}}
@@ -54,6 +57,20 @@ class A2ATest(unittest.TestCase):
         self.assertEqual(path, "/api/a2a/fabryka/probny/")
         self.assertEqual(user, "test@warsztat")
         self.assertEqual(body["method"], "message/send")
+
+    def test_trace_context_goes_to_kagent_as_step_span(self):
+        os.environ.update({"TRACEPARENT": "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01",
+                           "FABRYKA_RUN": "fabryka-rabat-x1", "FABRYKA_NODE": "fabryka-rabat-x1[2].wykonawca[0].run"})
+        try:
+            a2a.send("wykonawca", "cześć")
+        finally:
+            for key in ("TRACEPARENT", "FABRYKA_RUN", "FABRYKA_NODE"):
+                os.environ.pop(key)
+        trace, parent = slad.parse_traceparent(FakeKagent.traceparents[-1])
+        self.assertEqual(trace, "4bf92f3577b34da6a3ce929d0e0e4736")
+        self.assertNotEqual(parent, "00f067aa0ba902b7", "rodzicem agenta jest span kroku, nie węzeł Argo")
+        a2a.send("probny", "cześć")
+        self.assertIsNone(FakeKagent.traceparents[-1], "lokalnie bez TRACEPARENT nie wysyłamy nagłówka")
 
     def test_falls_back_to_last_agent_message(self):
         self.assertEqual(a2a.send("probny", "bez artefaktu"), "z historii")

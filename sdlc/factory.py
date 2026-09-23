@@ -23,6 +23,7 @@ import os
 import re
 from pathlib import Path
 
+import slad
 from lib import ROOT, STATE, outputs, load_json, summary_md, write_json
 
 LINE_FILES = ["sdlc/policy.json", "sdlc/review-rules.json", "AGENTS.md", "scenarios/index.json",
@@ -123,6 +124,7 @@ DECISIONS = {
 def card(attempt: int, decision: str, lead_min: float | None, human_wait_min: float | None) -> str:
     config = line_config()
     cost = agent_cost()
+    trace = slad.url(slad.Step().trace_id)
     risk = load_json(STATE / "risk.json") if (STATE / "risk.json").exists() else {}
     data = {
         "attempt": attempt,
@@ -134,6 +136,7 @@ def card(attempt: int, decision: str, lead_min: float | None, human_wait_min: fl
         "cost_usd": cost["usd"],
         "tokens": cost["tokens_in"] + cost["tokens_out"],
         "config": config["hash"],
+        "trace": trace,
     }
     write_json(STATE / "card.json", data)
     fmt = lambda v, unit: "-" if v is None else f"{v:.0f} {unit}"
@@ -149,6 +152,7 @@ def card(attempt: int, decision: str, lead_min: float | None, human_wait_min: fl
         f"| Czekanie na człowieka | {fmt(human_wait_min, 'min')} |",
         f"| Koszt agenta (szacunek) | {cost['usd']:.2f} USD, {data['tokens']:,} tokenów |".replace(",", " "),
         f"| Konfiguracja linii | `{config['hash']}` |",
+        *([f"| Ślad | [Jaeger]({trace}) |"] if trace else []),
         "",
         f"<!-- factory-card {json.dumps(data, ensure_ascii=False)} -->",
     ]

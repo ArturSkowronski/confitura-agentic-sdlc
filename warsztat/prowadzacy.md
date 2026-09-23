@@ -26,8 +26,10 @@ Między odsłonami są slajdy z tezą. Każda teza ma dowód z repo, nie z inter
 
 | Kiedy | Co |
 |---|---|
-| do 22.09 | **Dopisz rozwiązanie ćwiczenia 6**: reguły ArchUnit `money_arithmetic_only_in_pricing` nie ma na `main`, zostało samo TODO. Slajd 28 przewodnika ma gotową wersję. Sprawdź `make test` (zielone) i `make naiwna` (czerwone), potem `scripts/restack.sh`. |
-| do 22.09 | Wypchnij repo z tagami `lekcja-01` … `lekcja-10`: `scripts/restack.sh --push`. `main` = lekcja 10. |
+| do 22.09 | **Rozwiązanie ćwiczenia 6** (`money_arithmetic_only_in_pricing`) jest w osobnym commicie „Rozwiązanie ćwiczenia 6: …” nad lekcją 10. Przenieś je do commitu „Lekcja 7:” (`git rebase -i`), sprawdź `make test` (zielone) i `make naiwna` (czerwone), potem `scripts/restack.sh`. |
+| **pilne** | **Repo nie ma jeszcze na GitHubie**, a finał i SETUP zakładają forki. Załóż publiczne `ArturSkowronski/confitura-agentic-sdlc`, `git remote add origin …`, `scripts/restack.sh --push`. `main` = lekcja 10 + finał. Forki robione przed restackiem mają stare tagi. |
+| do 24.09 | Dopisz do maila z setupem: fork, `gh auth login`, `brew install gh` (SETUP.md już to ma). |
+| 24.09 | Przejdź finał na swoim forku: `make github`, `make issue Z=rabat`, `make ciagnij AGENT=replay`. PR, cztery zielone checki, auto-merge, issue zamknięte, link do śladu działa. |
 | do 22.09 | Opublikuj obrazy `fabryka-toolbox` i `fabryka-warsztat` na ghcr.io (plan B dla osób, którym build nie przejdzie) i dopisz w SETUP.md. |
 | do 22.09 | Wyślij mail z setupem (`warsztat/mail-setup.md`). Uzupełnij salę. |
 | 23.09 | Przejdź na czysto: `kind delete cluster --name fabryka`, `make klaster`, `make setup`, `make doctor`, `make replay Z=rabat`, `make zlecenie Z=zwroty-czesciowe`. Zmierz czasy. |
@@ -103,6 +105,15 @@ ADR-0001, raz jako kontekst, raz jako bramka) jest jej najkrótszym dowodem.
 Jeśli jesteś spóźniony: lekcja 3 i 4 jako demo (bez ćwiczeń), lekcja 10 tylko odsłona 11.
 Ćwiczenia, których nie wolno pominąć: 2 (chronione ścieżki), 6 (ArchUnit), 9A (suspend).
 
+## Finał na GitHubie
+
+`warsztat/final-github.md`, 12 minut. Nie mieści się w obecnym przebiegu bez cięcia: lekcje 3 i 4 prowadź
+jako demo bez ćwiczeń (zysk około 16 minut), finał po lekcji 10, klamra zostaje. Odsłona finału: ręczny
+commit na gałęzi agenta i czerwony check `pochodzenie` („po commicie z księgi zmieniono kod”).
+
+Co musi działać u uczestnika: fork jako `origin`, `gh auth login`, sieć do GitHuba. Bez sieci finał
+pokazujesz z laptopa demo, a uczestnicy robią `make zlecenie … AGENT=replay`.
+
 ## Plan B
 
 | Problem | Co robisz |
@@ -135,5 +146,9 @@ Jeśli jesteś spóźniony: lekcja 3 i 4 jako demo (bez ćwiczeń), lekcja 10 ty
   naraz nadpisują sobie gałąź. Semafor WIP nie chroni przed tym: to świadome uproszczenie warsztatu.
 - Helm na macOS w sesji bez TTY nie umie pobrać chartu OCI (keychain). U uczestników w terminalu
   działa; gdyby nie, `KAGENT_CHART` i `KAGENT_CHART_CRDS` w `scripts/klaster.sh` przyjmują ścieżkę do `.tgz`.
+- Kontroler Argo wysyła ślady (OTLP do Jaegera) i daje krokom `TRACEPARENT`. `sdlc/a2a.py` przekazuje go
+  do kagent, więc spany agenta są w śladzie przebiegu. Ślad Argo ma sporo spanów kontrolera
+  (`reconcileTaskResult` itd.): w Jaegerze filtruj serwis `fabryka-linia` albo zwiń drzewo do kroków.
+- Klucz cosign montuje tylko krok księgi, token GitHuba tylko `krok-github`. Build kodu agenta nie ma sekretów.
 - Blokujące znalezisko review eskaluje do człowieka, nie do poprawki. Inaczej dobry model
   (recenzent trafnie wytknął losowy UUID) kończyłby zwroty andonem po dwóch próbach.

@@ -10,10 +10,12 @@ zielony. Klaster działa na Twoim laptopie; na sali potrzebujesz sieci tylko do 
 - `git`, `make`, `python3` (3.10+), `java` 21 i `mvn`,
 - narzędzi klastra: `kind`, `kubectl`, `helm`, `argo`, `cosign`.
 
+- konta na GitHubie i `gh` (finał warsztatu pracuje na Twoim forku).
+
 macOS z Homebrew:
 
 ```bash
-brew install kind kubectl helm argo cosign maven openjdk@21
+brew install kind kubectl helm argo cosign maven openjdk@21 gh
 ```
 
 Linux: każde z tych narzędzi ma binarkę do pobrania w releasach na GitHubie. Windows: użyj WSL2.
@@ -23,8 +25,9 @@ w trybie replay (nagrane zmiany zamiast modelu).
 
 ## Kroki
 
-1. Sklonuj repozytorium: `git clone https://github.com/ArturSkowronski/confitura-agentic-sdlc`
-2. Wejdź do katalogu: `cd confitura-agentic-sdlc`
+1. Zrób fork https://github.com/ArturSkowronski/confitura-agentic-sdlc na swoim koncie i sklonuj fork:
+   `git clone https://github.com/<login>/confitura-agentic-sdlc`
+2. Wejdź do katalogu: `cd confitura-agentic-sdlc` i zaloguj się do GitHuba: `gh auth login`
 3. Postaw klaster: `make klaster` (pierwszy raz 5 do 10 minut, ciągnie obrazy).
 4. Zbuduj obrazy fabryki: `make setup` (kilka minut, od lekcji 2).
 5. Sprawdź: `make doctor`. Wszystko ma być zielone.

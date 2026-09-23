@@ -1,0 +1,122 @@
+# Bramki fabryki poza klastrem (finał). Działają na infrastrukturze GitHuba, na którą agent nie ma wpływu:
+# nie ma tokena do GitHuba, a gałąź agent/* zmieniająca .github/ odpada w jobie `pochodzenie`.
+#
+# Zasada: narzędzia i bramki zawsze z main (sdlc/, scenarios/, system/architecture/, system/pom.xml, klucz cosign),
+# kod z PR. Agent może zaproponować nową regułę, ale obowiązuje dopiero po merge'u przez człowieka.
+#
+#   bramki       build, testy, ArchUnit, detektor osłabiania testów
+#   wyrocznia    scenariusze holdout z main (sejf tylko jako decyzja)
+#   review       ryzyko i review deterministyczne (DET-*), SARIF do code scanning, jeden komentarz w PR
+#   pochodzenie  księga fabryki: łańcuch, podpis cosign, kod PR = commit, który przeszedł bramki w klastrze
+#
+# Te cztery nazwy są wymaganymi checkami na main (make github), więc auto-merge z lights-out czeka na nie.
+name: fabryka
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fabryka-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  BASE: origin/${{ github.base_ref }}
+  TITLE: ${{ github.event.pull_request.title }}
+  HEAD_REF: ${{ github.head_ref }}
+  SUMMARY_FILE: ${{ github.workspace }}/.summary.md
+  GATES_FROM_MAIN: sdlc scenarios system/architecture system/pom.xml platforma/linia/cosign/cosign.pub
+
+jobs:
+  bramki:
+    name: bramki
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with: {fetch-depth: 0}
+      - name: Bramki z main
+        run: git checkout "$BASE" -- $GATES_FROM_MAIN
+      - uses: actions/setup-java@v5
+        with: {distribution: temurin, java-version: "21", cache: maven}
+      - name: Build, testy i ArchUnit
+        run: |
+          set +e; (cd system && mvn -B -ntp verify > ../mvn.log 2>&1); code=$?; set -e
+          tail -n 40 mvn.log
+          python3 sdlc/gates.py report --log mvn.log --exit-code $code >> "$GITHUB_STEP_SUMMARY"
+          exit $code
+      - name: Osłabianie testów
+        run: python3 sdlc/gates.py weakening --base "$BASE" --head HEAD | tee -a "$GITHUB_STEP_SUMMARY"
+
+  wyrocznia:
+    name: wyrocznia
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with: {fetch-depth: 0}
+      - name: Wyrocznia z main
+        run: git checkout "$BASE" -- $GATES_FROM_MAIN
+      - uses: actions/setup-java@v5
+        with: {distribution: temurin, java-version: "21", cache: maven}
+      - name: Scenariusze holdout
+        run: |
+          (cd system && mvn -B -ntp -q install -DskipTests)
+          python3 sdlc/scenarios.py run --work-order "$TITLE" | tee -a "$GITHUB_STEP_SUMMARY"
+
+  review:
+    name: review
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      security-events: write
+    steps:
+      - uses: actions/checkout@v5
+        with: {fetch-depth: 0}
+      - name: Review z main
+        run: git checkout "$BASE" -- $GATES_FROM_MAIN
+      - name: Ryzyko i review deterministyczne
+        run: |
+          agent=""; case "$HEAD_REF" in agent/*) agent="--agent" ;; esac
+          python3 sdlc/risk.py --base "$BASE" --head HEAD $agent --work-order "$TITLE" > risk.md
+          set +e; python3 sdlc/review.py --base "$BASE" --head HEAD --out-md review.md --out-sarif review.sarif --fail-on-blocking > /dev/null; code=$?; set -e
+          cat risk.md review.md >> "$GITHUB_STEP_SUMMARY"
+          echo "code=$code" >> "$GITHUB_ENV"
+      - name: SARIF do code scanning
+        if: always()
+        continue-on-error: true
+        uses: github/codeql-action/upload-sarif@v3
+        with: {sarif_file: review.sarif, category: fabryka-review}
+      - name: Jeden komentarz w PR (aktualizowany, nie dokładany)
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          { echo "<!-- fabryka-ci -->"; echo "## 🧱 Bramki GitHuba: review"; cat risk.md review.md; } > comment.md
+          id=$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments" --paginate --jq '.[] | select(.body | startswith("<!-- fabryka-ci -->")) | .id' | head -1)
+          if [ -n "$id" ]; then gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$id" -F body=@comment.md > /dev/null
+          else gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments" -F body=@comment.md > /dev/null; fi
+      - name: Blokujące znalezisko zatrzymuje merge
+        run: exit "$code"
+
+  pochodzenie:
+    name: pochodzenie
+    runs-on: ubuntu-latest
+    steps:
+      # Głowa PR, nie commit scalony z main: księga mówi o commicie na gałęzi agenta.
+      - uses: actions/checkout@v5
+        with: {fetch-depth: 0, ref: "${{ github.event.pull_request.head.sha }}"}
+      - name: Narzędzia i klucz z main
+        run: git checkout "$BASE" -- $GATES_FROM_MAIN
+      - name: cosign
+        run: |
+          curl -fsSL -o /usr/local/bin/cosign https://github.com/sigstore/cosign/releases/download/v3.1.3/cosign-linux-amd64
+          chmod +x /usr/local/bin/cosign && cosign version | head -3
+      - name: Księga, podpis, commit, granice
+        run: |
+          set +e; python3 sdlc/pochodzenie.py --base "$BASE" --head HEAD --branch "$HEAD_REF"; code=$?; set -e
+          cat "$SUMMARY_FILE" >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || true
+          exit $code

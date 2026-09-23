@@ -34,7 +34,13 @@ class Workspace:
         full = (self.root / path).resolve()
         if full != self.root and self.root not in full.parents:
             raise ValueError(f"Rejected: {path} escapes the repository")
-        return str(full.relative_to(self.root)) if full != self.root else ""
+        rel = str(full.relative_to(self.root)) if full != self.root else ""
+        # .git nie jest konfigurowalne: zapis .git/config (core.fsmonitor, core.hooksPath) to wykonanie dowolnej
+        # komendy przy najbliższym `git status` w kroku linii, który ma klucz cosign i token GitHuba.
+        if rel == ".git" or rel.startswith(".git/"):
+            self.event("gate.tamper_attempt", path=rel, blocked=True)
+            raise ValueError(f"Rejected: {path} is git internals")
+        return rel
 
     @staticmethod
     def _under(rel: str, prefixes: list[str]) -> str | None:

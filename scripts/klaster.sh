@@ -31,6 +31,9 @@ kubectl apply --server-side --force-conflicts -f platforma/argo/controller-confi
 kubectl patch deploy argo-server -n argo --type=json -p '[
   {"op":"replace","path":"/spec/template/spec/containers/0/args","value":["server","--auth-mode=server","--secure=false"]},
   {"op":"replace","path":"/spec/template/spec/containers/0/readinessProbe/httpGet/scheme","value":"HTTP"}]' >/dev/null
+# Ślad przebiegu (lekcja 10): kontroler zakłada trace dla każdego przebiegu i daje krokom TRACEPARENT.
+kubectl set env deploy/workflow-controller -n argo OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger.fabryka.svc:4317 \
+  OTEL_EXPORTER_OTLP_INSECURE=true OTEL_SERVICE_NAME=argo-workflows >/dev/null
 
 step "kagent $KAGENT_VERSION (agenci)"
 # Sekret z kluczem musi istnieć, zanim wstaną agenci; bez klucza dostają wartość „brak” i linia działa w trybie replay.

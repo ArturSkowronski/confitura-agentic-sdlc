@@ -26,7 +26,7 @@ from pathlib import Path
 import a2a
 from lib import ROOT, SDLC, STATE, load_json, tokens
 
-PROTECTED = ["system/architecture/", "sdlc/", "platforma/", "scenarios/"]
+PROTECTED = ["system/architecture/", "sdlc/", "platforma/", "scenarios/", ".github/", ".fabryka/"]
 ATTEMPT = int(os.environ.get("ATTEMPT", "1"))
 TIMEOUT = int(os.environ.get("AGENT_TIMEOUT", "1500"))
 BASE = os.environ.get("BASE_BRANCH", "main")
