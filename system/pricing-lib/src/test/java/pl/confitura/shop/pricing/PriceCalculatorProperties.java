@@ -39,6 +39,6 @@ class PriceCalculatorProperties {
     @Provide
     Arbitrary<DiscountPolicy> policies() {
         // Każda nowa polityka rabatowa powinna trafić na tę listę.
-        return Arbitraries.of(new NoDiscount());
+        return Arbitraries.of(new NoDiscount(), new ThresholdDiscount(Money.of("500.00"), 10));
     }
 }
