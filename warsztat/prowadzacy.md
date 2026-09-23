@@ -26,8 +26,8 @@ Między odsłonami są slajdy z tezą. Każda teza ma dowód z repo, nie z inter
 
 | Kiedy | Co |
 |---|---|
-| do 22.09 | **Rozwiązanie ćwiczenia 6** (`money_arithmetic_only_in_pricing`) jest w osobnym commicie „Rozwiązanie ćwiczenia 6: …” nad lekcją 10. Przenieś je do commitu „Lekcja 7:” (`git rebase -i`), sprawdź `make test` (zielone) i `make naiwna` (czerwone), potem `scripts/restack.sh`. |
-| **pilne** | **Repo nie ma jeszcze na GitHubie**, a finał i SETUP zakładają forki. Załóż publiczne `ArturSkowronski/confitura-agentic-sdlc`, `git remote add origin …`, `scripts/restack.sh --push`. `main` = lekcja 10 + finał. Forki robione przed restackiem mają stare tagi. |
+| ✅ 23.09 | Rozwiązanie ćwiczenia 6 (`money_arithmetic_only_in_pricing`) jest w commicie „Lekcja 7:”, tagi przestawione `scripts/restack.sh`. `make test` zielone, naiwny rabat czerwony. |
+| ✅ 23.09 | Repo publiczne: https://github.com/ArturSkowronski/confitura-agentic-sdlc, `main` = lekcja 10 + finał, tagi `lekcja-01` … `lekcja-10` po restacku. Kolejny restack przed forkami uczestników, potem już nie (forki mają kopie tagów). |
 | do 24.09 | Dopisz do maila z setupem: fork, `gh auth login`, `brew install gh` (SETUP.md już to ma). |
 | 24.09 | Przejdź finał na swoim forku: `make github`, `make issue Z=rabat`, `make ciagnij AGENT=replay`. PR, cztery zielone checki, auto-merge, issue zamknięte, link do śladu działa. |
 | do 22.09 | Opublikuj obrazy `fabryka-toolbox` i `fabryka-warsztat` na ghcr.io (plan B dla osób, którym build nie przejdzie) i dopisz w SETUP.md. |
