@@ -33,7 +33,8 @@ def classify(base: str, head: str, agent_authored: bool, attempt: int = 1, work_
     rules = policy()
     index = build_index()
     catalog = index["modules"]
-    numstat = [line.split("\t") for line in git("diff", "--numstat", f"{base}...{head}").splitlines() if line]
+    # .fabryka/ to księga, którą linia dopisuje do PR po bramkach (finał). To nie jest zmiana kodu.
+    numstat = [line.split("\t") for line in git("diff", "--numstat", f"{base}...{head}", "--", ".", ":!.fabryka").splitlines() if line]
     files = [{"path": p, "added": int(a) if a.isdigit() else 0, "deleted": int(d) if d.isdigit() else 0} for a, d, p in numstat]
     paths = [f["path"] for f in files]
     lines = sum(f["added"] + f["deleted"] for f in files)

@@ -148,7 +148,7 @@ def card(attempt: int, decision: str, lead_min: float | None, human_wait_min: fl
         f"| Decyzja | {DECISIONS.get(decision, decision)} |",
         f"| Próba | {attempt}{' (first pass)' if data['first_pass'] else ''} |",
         f"| Ryzyko | {risk.get('level', '-')} |",
-        f"| Lead time (od etykiety `agent`) | {fmt(lead_min, 'min')} |",
+        f"| Lead time | {fmt(lead_min, 'min')} |",
         f"| Czekanie na człowieka | {fmt(human_wait_min, 'min')} |",
         f"| Koszt agenta (szacunek) | {cost['usd']:.2f} USD, {data['tokens']:,} tokenów |".replace(",", " "),
         f"| Konfiguracja linii | `{config['hash']}` |",

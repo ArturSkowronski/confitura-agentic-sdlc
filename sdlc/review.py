@@ -33,7 +33,7 @@ SARIF_LEVEL = {"blocking": "error", "recommendation": "warning", "suggestion": "
 def added_lines(base: str, head: str) -> list[tuple[str, int, str]]:
     """(plik, numer linii w nowej wersji, treść) dla każdej dodanej linii."""
     result, current, line_no = [], None, 0
-    for line in git("diff", "-U0", f"{base}...{head}").splitlines():
+    for line in git("diff", "-U0", f"{base}...{head}", "--", ".", ":!.fabryka").splitlines():
         if line.startswith("+++ "):
             current = line[6:] if line.startswith("+++ b/") else None
         elif line.startswith("@@"):

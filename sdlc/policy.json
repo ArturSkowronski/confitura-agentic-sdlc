@@ -16,7 +16,6 @@
   ],
   "gate_paths": [
     ".github/",
-    ".fabryka/",
     "scenarios/",
     "sdlc/",
     "system/architecture/",
