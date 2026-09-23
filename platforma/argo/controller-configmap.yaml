@@ -10,6 +10,11 @@ data:
   retentionPolicy: |
     completed: 20
     failed: 10
+  # Z przebiegu w hali prosto do jego śladu: spany kroków (serwis fabryka-linia) mają tag fabryka.run.
+  links: |
+    - name: Ślad w Jaegerze
+      scope: workflow
+      url: http://localhost:16686/search?service=fabryka-linia&lookback=2d&tags=%7B%22fabryka.run%22%3A%22${metadata.name}%22%7D
   executor: |
     resources:
       requests: {cpu: 10m, memory: 64Mi}

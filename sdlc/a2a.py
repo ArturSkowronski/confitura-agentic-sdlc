@@ -8,6 +8,8 @@ Zmienne środowiskowe:
                  w klastrze http://kagent-controller.kagent.svc:8083
   KAGENT_NS      domyślnie fabryka (namespace agentów fabryki; platforma kagent siedzi w kagent)
   A2A_USER       nagłówek X-User-Id (kagent nie uwierzytelnia, ale zapisuje, kto pytał)
+  TRACEPARENT    w kroku linii: kontekst W3C z Argo. Wysyłamy span kroku (sdlc/slad.py), więc spany agenta
+                 lądują w tym samym śladzie co przebieg
 
 Użycie:
   python3 sdlc/a2a.py --agent probny --task "Przedstaw się"
@@ -24,6 +26,8 @@ import time
 import urllib.error
 import urllib.request
 import uuid
+
+import slad
 
 
 def base_url() -> str:
@@ -62,9 +66,11 @@ def _send_once(agent: str, text: str, namespace: str | None, session: str | None
     if session:
         message["contextId"] = session
     body = {"jsonrpc": "2.0", "id": str(uuid.uuid4()), "method": "message/send", "params": {"message": message}}
-    request = urllib.request.Request(
-        agent_url(agent, namespace), data=json.dumps(body).encode(),
-        headers={"Content-Type": "application/json", "X-User-Id": os.environ.get("A2A_USER", "fabryka@warsztat")})
+    headers = {"Content-Type": "application/json", "X-User-Id": os.environ.get("A2A_USER", "fabryka@warsztat")}
+    traceparent = slad.Step().traceparent()
+    if traceparent:
+        headers["traceparent"] = traceparent
+    request = urllib.request.Request(agent_url(agent, namespace), data=json.dumps(body).encode(), headers=headers)
     try:
         with urllib.request.urlopen(request, timeout=timeout) as response:
             payload = json.loads(response.read())

@@ -50,6 +50,16 @@ class WorkspaceTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.ws.read_file("../etc/passwd")
 
+    def test_git_internals_are_rejected_even_without_protection(self):
+        ws = Workspace(self.ws.root, protected=[], hidden=[], events_file=self.events)
+        for path in (".git/config", ".git/hooks/post-commit", "system/../.git/config"):
+            with self.assertRaises(ValueError):
+                ws.write_file(path, "[core]\n\tfsmonitor = curl evil\n")
+        with self.assertRaises(ValueError):
+            ws.read_file(".git/config")
+        self.assertIn("gate.tamper_attempt", self.types())
+        self.assertNotIn("fsmonitor", (self.ws.root / ".git" / "config").read_text())
+
     def test_no_protection_when_lists_empty(self):
         ws = Workspace(self.ws.root, protected=[], hidden=[], events_file=self.events)
         self.assertTrue(ws.write_file("sdlc/policy.json", "x").startswith("Written"))

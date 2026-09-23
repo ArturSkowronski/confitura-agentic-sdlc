@@ -1,0 +1,102 @@
+# Finał: fabryka ciągnie zlecenia z GitHuba. Co dwie minuty bierze najstarsze issue z etykietą `fabryka`
+# z Twojego forka i uruchamia na nim linię (WorkflowTemplate fabryka, zrodlo=github).
+#
+# Klaster na laptopie nie przyjmie webhooka z internetu, więc pytamy GitHuba sami (polling). Jedno zlecenie naraz
+# (concurrencyPolicy: Forbid i czekanie na przebieg): linia i agent dzielą jeden dysk /work.
+# Poller ma własne konto z prawem zakładania przebiegów. Kroki linii tego prawa nie mają.
+# Wdrożenie: make github (razem z Secretem fabryka-github). Ręczny strzał: make ciagnij.
+apiVersion: v1
+kind: ServiceAccount
+metadata: {name: fabryka-ciagnie, namespace: fabryka}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata: {name: fabryka-ciagnie, namespace: fabryka}
+rules:
+  - apiGroups: ["argoproj.io"]
+    resources: ["workflows"]
+    verbs: ["create", "get", "list", "watch", "patch"]
+  - apiGroups: ["argoproj.io"]
+    resources: ["workflowtaskresults"]
+    verbs: ["create", "patch"]
+  - apiGroups: [""]
+    resources: ["pods", "pods/log"]
+    verbs: ["get", "watch", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata: {name: fabryka-ciagnie, namespace: fabryka}
+subjects: [{kind: ServiceAccount, name: fabryka-ciagnie, namespace: fabryka}]
+roleRef: {kind: Role, name: fabryka-ciagnie, apiGroup: rbac.authorization.k8s.io}
+---
+apiVersion: argoproj.io/v1alpha1
+kind: CronWorkflow
+metadata:
+  name: fabryka-ciagnie
+  namespace: fabryka
+spec:
+  schedules: ["*/2 * * * *"]
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 60
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  workflowSpec:
+    serviceAccountName: fabryka-ciagnie
+    entrypoint: ciagnij
+    arguments:
+      parameters:
+        - {name: agent, value: kagent}   # replay: linia bez modelu (plan B)
+    templates:
+      - name: ciagnij
+        steps:
+          - - name: wez
+              template: wez
+          - - name: linia
+              template: linia
+              when: "'{{steps.wez.outputs.parameters.issue}}' != ''"
+              arguments: {parameters: [{name: issue, value: "{{steps.wez.outputs.parameters.issue}}"}]}
+
+      # Kod pollera zawsze ze świeżego main forka, nie z dysku /work, na którym pracuje agent.
+      - name: wez
+        outputs:
+          parameters:
+            - name: issue
+              valueFrom: {path: /tmp/outputs/issue, default: ""}
+        container:
+          image: fabryka-toolbox:lekcja
+          imagePullPolicy: IfNotPresent
+          command: [bash, -eo, pipefail, -c]
+          args:
+            - |
+              mkdir -p /tmp/outputs
+              [ -n "$GH_TOKEN" ] || { echo "brak Secretu fabryka-github: make github"; exit 1; }
+              auth=$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)
+              git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $auth" clone -q --depth 1 "https://github.com/$GH_REPO.git" /tmp/repo
+              OUTPUTS_DIR=/tmp/outputs python3 /tmp/repo/sdlc/github.py ciagnij
+          env:
+            - {name: PYTHONDONTWRITEBYTECODE, value: "1"}
+            - name: GH_TOKEN
+              valueFrom: {secretKeyRef: {name: fabryka-github, key: GH_TOKEN, optional: true}}
+            - name: GH_REPO
+              valueFrom: {secretKeyRef: {name: fabryka-github, key: GH_REPO, optional: true}}
+
+      # Przebieg linii dla issue. Poller czeka na koniec (także andon), więc następne issue rusza po nim.
+      - name: linia
+        inputs:
+          parameters: [{name: issue}]
+        resource:
+          action: create
+          successCondition: status.phase in (Succeeded, Failed, Error)
+          manifest: |
+            apiVersion: argoproj.io/v1alpha1
+            kind: Workflow
+            metadata:
+              generateName: fabryka-issue-{{inputs.parameters.issue}}-
+              namespace: fabryka
+            spec:
+              workflowTemplateRef: {name: fabryka}
+              arguments:
+                parameters:
+                  - {name: zlecenie, value: "issue-{{inputs.parameters.issue}}"}
+                  - {name: zrodlo, value: github}
+                  - {name: agent, value: "{{workflow.parameters.agent}}"}

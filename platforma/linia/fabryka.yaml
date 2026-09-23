@@ -3,6 +3,9 @@
 #   → 🧱 kontrola jakości ‖ 🔎 ryzyko i review → ⚖️ decyzja: lights-out | 👤 człowiek | 🔁 poprawka (próba+1) | 🚨 andon
 #   → 🔗 księga (łańcuch hashy, podpis cosign) + 🏭 karta zlecenia
 # Uruchomienie: make zlecenie Z=rabat [AGENT=replay]. Graf i logi: hala (Argo UI).
+# Finał (warsztat/final-github.md): zrodlo=github. Zlecenie to issue, wynik to PR z księgą i pierwszym review,
+# andon to komentarz pod issue. Przebiegi zakłada CronWorkflow fabryka-ciagnie (platforma/github/).
+# Ślad: Argo zakłada trace przebiegu, każdy krok dokłada swój span (sdlc/slad.py), agent kagent zagnieżdża się pod krokiem.
 apiVersion: argoproj.io/v1alpha1
 kind: WorkflowTemplate
 metadata:
@@ -11,6 +14,8 @@ metadata:
 spec:
   serviceAccountName: fabryka
   entrypoint: linia
+  # Po przebiegu, także po awarii: korzeń śladu, a na GitHubie issue nie może zostać „w toku”.
+  onExit: koniec
   # Limit WIP (lekcja 9): fabryka ciągnie, nie pcha. Nadmiarowe zlecenia czekają w kolejce na semaforze.
   synchronization:
     semaphores:
@@ -21,6 +26,7 @@ spec:
       - {name: agent, value: kagent}      # kagent | replay
       - {name: proba, value: "1"}
       - {name: modul, value: ""}          # tylko replay: wymuś moduł nagrania (make naiwna)
+      - {name: zrodlo, value: plik}       # plik (zlecenia/*.md, wynik w /work/out) | github (issue → PR)
   volumes:
     - name: work
       persistentVolumeClaim: {claimName: warsztat}
@@ -29,14 +35,14 @@ spec:
   templates:
     - name: linia
       inputs:
-        parameters: [{name: zlecenie}, {name: agent}, {name: proba}, {name: modul, value: ""}]
+        parameters: [{name: zlecenie}, {name: agent}, {name: proba}, {name: modul, value: ""}, {name: zrodlo, value: plik}]
       steps:
         - - name: przygotuj
             template: przygotuj
-            arguments: {parameters: [{name: zlecenie, value: "{{inputs.parameters.zlecenie}}"}, {name: proba, value: "{{inputs.parameters.proba}}"}]}
+            arguments: {parameters: [{name: zlecenie, value: "{{inputs.parameters.zlecenie}}"}, {name: proba, value: "{{inputs.parameters.proba}}"}, {name: zrodlo, value: "{{inputs.parameters.zrodlo}}"}]}
         - - name: przyjecie
             template: przyjecie
-            arguments: {parameters: [{name: zlecenie, value: "{{inputs.parameters.zlecenie}}"}, {name: proba, value: "{{inputs.parameters.proba}}"}]}
+            arguments: {parameters: [{name: zlecenie, value: "{{inputs.parameters.zlecenie}}"}, {name: proba, value: "{{inputs.parameters.proba}}"}, {name: zrodlo, value: "{{inputs.parameters.zrodlo}}"}]}
         - - name: wykonawca
             template: wykonawca
             when: "{{steps.przyjecie.outputs.parameters.accepted}} == true"
@@ -57,13 +63,18 @@ spec:
             template: decyzja
             when: "{{steps.przyjecie.outputs.parameters.accepted}} == true"
             arguments: {parameters: [{name: zlecenie, value: "{{inputs.parameters.zlecenie}}"}, {name: proba, value: "{{inputs.parameters.proba}}"}]}
+        # Na GitHubie człowiekiem jest review PR: linia nie staje, PR czeka bez auto-merge.
         - - name: czlowiek
             template: czlowiek
-            when: "{{steps.decyzja.outputs.parameters.decyzja}} == człowiek"
+            when: "{{steps.decyzja.outputs.parameters.decyzja}} == człowiek && {{inputs.parameters.zrodlo}} == plik"
             arguments: {parameters: [{name: zlecenie, value: "{{inputs.parameters.zlecenie}}"}, {name: proba, value: "{{inputs.parameters.proba}}"}]}
         - - name: ksiega
             template: ksiega
             when: "{{steps.przyjecie.outputs.parameters.accepted}} == true"
+            arguments: {parameters: [{name: zlecenie, value: "{{inputs.parameters.zlecenie}}"}, {name: proba, value: "{{inputs.parameters.proba}}"}, {name: decyzja, value: "{{steps.decyzja.outputs.parameters.decyzja}}"}]}
+        - - name: github
+            template: github
+            when: "{{inputs.parameters.zrodlo}} == github && {{steps.przyjecie.outputs.parameters.accepted}} == true && {{steps.decyzja.outputs.parameters.decyzja}} != poprawka"
             arguments: {parameters: [{name: zlecenie, value: "{{inputs.parameters.zlecenie}}"}, {name: proba, value: "{{inputs.parameters.proba}}"}, {name: decyzja, value: "{{steps.decyzja.outputs.parameters.decyzja}}"}]}
         - - name: wynik
             template: wynik
@@ -73,7 +84,7 @@ spec:
           - name: poprawka
             template: linia
             when: "{{steps.decyzja.outputs.parameters.decyzja}} == poprawka"
-            arguments: {parameters: [{name: zlecenie, value: "{{inputs.parameters.zlecenie}}"}, {name: agent, value: "{{inputs.parameters.agent}}"}, {name: proba, value: "{{=asInt(inputs.parameters.proba) + 1}}"}, {name: modul, value: "{{inputs.parameters.modul}}"}]}
+            arguments: {parameters: [{name: zlecenie, value: "{{inputs.parameters.zlecenie}}"}, {name: agent, value: "{{inputs.parameters.agent}}"}, {name: proba, value: "{{=asInt(inputs.parameters.proba) + 1}}"}, {name: modul, value: "{{inputs.parameters.modul}}"}, {name: zrodlo, value: "{{inputs.parameters.zrodlo}}"}]}
 
     # Kontrola jakości: deterministyczna, bez modelu, poza zasięgiem agenta. Czerwona bramka nie zatrzymuje
     # pozostałych: fabryka chce pełny obraz, zanim zdecyduje. Mutacje po buildzie (ten sam katalog target/).
@@ -232,7 +243,7 @@ spec:
         parameters: [{name: zlecenie}, {name: proba}, {name: decyzja}]
       steps:
         - - name: run
-            template: krok
+            template: krok-podpis
             arguments:
               parameters:
                 - {name: zlecenie, value: "{{inputs.parameters.zlecenie}}"}
@@ -242,6 +253,7 @@ spec:
                     decyzja="{{inputs.parameters.decyzja}}"; L="--file $OUT/ledger.jsonl"; rm -f "$OUT/ledger.jsonl"
                     python3 sdlc/factory.py line-config > /dev/null
                     python3 sdlc/ledger.py $L append --type line.config --data "$(jq -c . .sdlc/line-config.json)"
+                    trace=$(python3 sdlc/slad.py url); [ -z "$trace" ] || python3 sdlc/ledger.py $L append --type trace --data "{\"url\": \"$trace\"}"
                     python3 sdlc/ledger.py $L append --type order.intake --data "$(jq -c '{accepted, problems}' .sdlc/intake.json)"
                     python3 sdlc/ledger.py $L append --type order.routed --data "$(jq -c --argjson a "$ATTEMPT" '{attempt: $a, module, reason, blast_radius, critical_in_radius}' .sdlc/route.json)"
                     python3 sdlc/ledger.py $L append --type agent.prompt --data "{\"agent\": \"$AGENT\", \"sha256\": \"$(sha256sum .sdlc/prompt.md | cut -d' ' -f1)\", \"bytes\": $(wc -c < .sdlc/prompt.md)}"
@@ -298,19 +310,22 @@ spec:
         image: fabryka-toolbox:lekcja
         imagePullPolicy: IfNotPresent
         command: [bash, -eo, pipefail, -c]
-        args: ["mkdir -p /tmp/outputs; {{inputs.parameters.skrypt}}"]
+        args: ["mkdir -p /tmp/outputs; t0=$(date +%s%N); trap 'python3 sdlc/slad.py krok --start $t0 --exit $? 2>/dev/null || true' EXIT; {{inputs.parameters.skrypt}}"]
         workingDir: /work/repo
         env:
           - {name: ZLECENIE, value: "{{inputs.parameters.zlecenie}}"}
           - {name: AGENT, value: "{{inputs.parameters.agent}}"}
           - {name: ATTEMPT, value: "{{inputs.parameters.proba}}"}
           - {name: FABRYKA_RUN, value: "{{workflow.name}}"}
+          - name: FABRYKA_NODE
+            valueFrom: {fieldRef: {fieldPath: "metadata.annotations['workflows.argoproj.io/node-name']"}}
           - {name: OUT, value: "/work/out/{{inputs.parameters.zlecenie}}/proba-{{inputs.parameters.proba}}"}
           - {name: OUTPUTS_DIR, value: /tmp/outputs}
           - {name: PYTHONDONTWRITEBYTECODE, value: "1"}
         volumeMounts: [{name: work, mountPath: /work}]
 
-    # Każdy krok to ten sam obraz i ten sam dysk. Różni się tylko skrypt.
+    # Każdy krok to ten sam obraz i ten sam dysk. Różni się tylko skrypt. Krok, który buduje i testuje kod agenta,
+    # nie ma żadnego sekretu: klucz cosign widzi tylko księga (krok-podpis), token GitHuba tylko krok-github.
     - name: krok
       inputs:
         parameters: [{name: skrypt}, {name: zlecenie}, {name: agent, value: kagent}, {name: proba, value: "1"}]
@@ -318,13 +333,15 @@ spec:
         image: fabryka-toolbox:lekcja
         imagePullPolicy: IfNotPresent
         command: [bash, -eo, pipefail, -c]
-        args: ["{{inputs.parameters.skrypt}}"]
+        args: ["t0=$(date +%s%N); trap 'python3 sdlc/slad.py krok --start $t0 --exit $? 2>/dev/null || true' EXIT; {{inputs.parameters.skrypt}}"]
         workingDir: /work/repo
         env:
           - {name: ZLECENIE, value: "{{inputs.parameters.zlecenie}}"}
           - {name: AGENT, value: "{{inputs.parameters.agent}}"}
           - {name: ATTEMPT, value: "{{inputs.parameters.proba}}"}
           - {name: FABRYKA_RUN, value: "{{workflow.name}}"}
+          - name: FABRYKA_NODE
+            valueFrom: {fieldRef: {fieldPath: "metadata.annotations['workflows.argoproj.io/node-name']"}}
           - {name: FABRYKA_STEP, value: "{{pod.name}}"}
           - {name: OUT, value: "/work/out/{{inputs.parameters.zlecenie}}/proba-{{inputs.parameters.proba}}"}
           - {name: OUTPUTS_DIR, value: /tmp/outputs}
@@ -332,15 +349,128 @@ spec:
           - {name: KAGENT_URL, value: "http://kagent-controller.kagent.svc:8083"}
           - {name: KAGENT_NS, value: fabryka}
           - {name: A2A_USER, value: "linia@fabryka"}
-        volumeMounts: [{name: work, mountPath: /work}, {name: cosign, mountPath: /run/secrets/cosign, readOnly: true}]
+        volumeMounts: [{name: work, mountPath: /work}]
         resources:
           requests: {cpu: 200m, memory: 512Mi}
           limits: {memory: 2Gi}
 
+    # Księga: jedyny krok z kluczem fabryki. Nie uruchamia kodu agenta, tylko sdlc/ i git.
+    - name: krok-podpis
+      inputs:
+        parameters: [{name: skrypt}, {name: zlecenie}, {name: agent, value: kagent}, {name: proba, value: "1"}]
+      container:
+        image: fabryka-toolbox:lekcja
+        imagePullPolicy: IfNotPresent
+        command: [bash, -eo, pipefail, -c]
+        args: ["t0=$(date +%s%N); trap 'python3 sdlc/slad.py krok --start $t0 --exit $? 2>/dev/null || true' EXIT; {{inputs.parameters.skrypt}}"]
+        workingDir: /work/repo
+        env:
+          - {name: ZLECENIE, value: "{{inputs.parameters.zlecenie}}"}
+          - {name: AGENT, value: "{{inputs.parameters.agent}}"}
+          - {name: ATTEMPT, value: "{{inputs.parameters.proba}}"}
+          - {name: FABRYKA_RUN, value: "{{workflow.name}}"}
+          - name: FABRYKA_NODE
+            valueFrom: {fieldRef: {fieldPath: "metadata.annotations['workflows.argoproj.io/node-name']"}}
+          - {name: FABRYKA_STEP, value: "{{pod.name}}"}
+          - {name: OUT, value: "/work/out/{{inputs.parameters.zlecenie}}/proba-{{inputs.parameters.proba}}"}
+          - {name: PYTHONDONTWRITEBYTECODE, value: "1"}
+        volumeMounts: [{name: work, mountPath: /work}, {name: cosign, mountPath: /run/secrets/cosign, readOnly: true}]
+
+    # Finał: jedyne kroki z tokenem GitHuba (Secret fabryka-github z make github). Nie budują kodu agenta:
+    # fetch, commit księgi, push gałęzi, PR i komentarze. Git bez hooków, token w nagłówku (sdlc/github.py).
+    - name: krok-github
+      inputs:
+        parameters: [{name: skrypt}, {name: zlecenie}, {name: agent, value: kagent}, {name: proba, value: "1"}]
+      container:
+        image: fabryka-toolbox:lekcja
+        imagePullPolicy: IfNotPresent
+        command: [bash, -eo, pipefail, -c]
+        args: ["t0=$(date +%s%N); trap 'python3 sdlc/slad.py krok --start $t0 --exit $? 2>/dev/null || true' EXIT; {{inputs.parameters.skrypt}}"]
+        workingDir: /work/repo
+        env:
+          - {name: ZLECENIE, value: "{{inputs.parameters.zlecenie}}"}
+          - {name: AGENT, value: "{{inputs.parameters.agent}}"}
+          - {name: ATTEMPT, value: "{{inputs.parameters.proba}}"}
+          - {name: FABRYKA_RUN, value: "{{workflow.name}}"}
+          - name: FABRYKA_NODE
+            valueFrom: {fieldRef: {fieldPath: "metadata.annotations['workflows.argoproj.io/node-name']"}}
+          - {name: OUT, value: "/work/out/{{inputs.parameters.zlecenie}}/proba-{{inputs.parameters.proba}}"}
+          - {name: PYTHONDONTWRITEBYTECODE, value: "1"}
+          - name: GH_TOKEN
+            valueFrom: {secretKeyRef: {name: fabryka-github, key: GH_TOKEN, optional: true}}
+          - name: GH_REPO
+            valueFrom: {secretKeyRef: {name: fabryka-github, key: GH_REPO, optional: true}}
+        volumeMounts: [{name: work, mountPath: /work}]
+
+    # Finał: wynik linii na GitHubie. lights-out i człowiek dostają PR (gałąź agenta + commit z księgą),
+    # andon dostaje komentarz pod issue. Księga jedzie z kodem: job `pochodzenie` w Actions sprawdza ją przed merge.
+    - name: github
+      inputs:
+        parameters: [{name: zlecenie}, {name: proba}, {name: decyzja}]
+      steps:
+        - - name: run
+            template: krok-github
+            arguments:
+              parameters:
+                - {name: zlecenie, value: "{{inputs.parameters.zlecenie}}"}
+                - {name: proba, value: "{{inputs.parameters.proba}}"}
+                - name: skrypt
+                  value: |
+                    decyzja="{{inputs.parameters.decyzja}}"; issue="${ZLECENIE#issue-}"
+                    if [ "$decyzja" = "andon" ]; then
+                      [ -s "$OUT/andon.md" ] || echo "Linia stanęła bez przejścia kontroli jakości." > "$OUT/andon.md"
+                      python3 sdlc/github.py andon --issue "$issue" --file "$OUT/andon.md"; exit 0
+                    fi
+                    mkdir -p ".fabryka/$ZLECENIE"
+                    for f in ledger.jsonl ledger.sigstore.json karta.md; do [ ! -f "$OUT/$f" ] || cp "$OUT/$f" ".fabryka/$ZLECENIE/"; done
+                    git add .fabryka && git -c core.hooksPath=/dev/null commit -qm "fabryka: księga zlecenia $ZLECENIE (próba $ATTEMPT, $decyzja)"
+                    python3 sdlc/github.py git push -q --force "{remote}" "agent/$ZLECENIE"
+                    python3 sdlc/github.py pr --issue "$issue" --out "$OUT" --decision "$decyzja"
+
+    # Po każdym przebiegu (onExit): korzeń śladu zlecenia, a na GitHubie andon pod issue, jeśli przebieg padł bez decyzji.
+    - name: koniec
+      steps:
+        - - name: slad
+            template: krok
+            arguments:
+              parameters:
+                - {name: zlecenie, value: "{{workflow.parameters.zlecenie}}"}
+                - name: skrypt
+                  value: python3 sdlc/slad.py korzen --start "{{workflow.creationTimestamp}}" --status "{{workflow.status}}" || true
+          - name: github
+            template: krok-github
+            when: "{{workflow.parameters.zrodlo}} == github"
+            arguments:
+              parameters:
+                - {name: zlecenie, value: "{{workflow.parameters.zlecenie}}"}
+                - name: skrypt
+                  value: python3 sdlc/github.py koniec --issue "${ZLECENIE#issue-}" --status "{{workflow.status}}" || true
+
     - name: przygotuj
       inputs:
-        parameters: [{name: zlecenie}, {name: proba}]
+        parameters: [{name: zlecenie}, {name: proba}, {name: zrodlo, value: plik}]
       steps:
+        # Finał: repo z GitHuba (main tam jest prawdą, także dla wyroczni) i zlecenie z issue. Token ma tylko ten krok.
+        - - name: github
+            template: krok-github
+            when: "{{inputs.parameters.zrodlo}} == github"
+            arguments:
+              parameters:
+                - {name: zlecenie, value: "{{inputs.parameters.zlecenie}}"}
+                - {name: proba, value: "{{inputs.parameters.proba}}"}
+                - name: skrypt
+                  value: |
+                    mkdir -p "$OUT"
+                    if [ "$ATTEMPT" = "1" ]; then
+                      auth=$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)
+                      [ -d .git ] || git init -q .
+                      git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $auth" -c core.hooksPath=/dev/null \
+                        fetch -q "https://github.com/$GH_REPO.git" main
+                      git -c core.hooksPath=/dev/null checkout -q -f -B main FETCH_HEAD && git clean -qfdx -e .sdlc
+                      echo "main z github.com/$GH_REPO: $(git log --oneline -1)"
+                    fi
+                    python3 sdlc/github.py zlecenie --issue "${ZLECENIE#issue-}" > "$OUT/zlecenie.json"
+                    echo "issue #${ZLECENIE#issue-}: $(jq -r .title "$OUT/zlecenie.json") ($(jq -r .url "$OUT/zlecenie.json"))"
         - - name: run
             template: krok
             arguments:
@@ -354,12 +484,12 @@ spec:
                     if [ "$ATTEMPT" = "1" ]; then git checkout -q main && git switch -q -C "agent/$ZLECENIE"; else git checkout -q "agent/$ZLECENIE"; fi
                     rm -rf .sdlc && mkdir -p .sdlc "$OUT" && : > /work/events.jsonl
                     if [ "$ATTEMPT" != "1" ]; then cp "/work/out/$ZLECENIE/proba-$((ATTEMPT - 1))/feedback.md" .sdlc/feedback.md && echo "raport z próby $((ATTEMPT - 1)) dołączony"; fi
-                    python3 sdlc/zlecenia.py "$ZLECENIE" > .sdlc/zlecenie.json
+                    if [ -f "$OUT/zlecenie.json" ]; then cp "$OUT/zlecenie.json" .sdlc/zlecenie.json; else python3 sdlc/zlecenia.py "$ZLECENIE" > .sdlc/zlecenie.json; fi
                     echo "zlecenie: $(jq -r .title .sdlc/zlecenie.json) (próba $ATTEMPT, gałąź $(git branch --show-current))"
 
     - name: przyjecie
       inputs:
-        parameters: [{name: zlecenie}, {name: proba}]
+        parameters: [{name: zlecenie}, {name: proba}, {name: zrodlo, value: plik}]
       outputs:
         parameters:
           - name: accepted
@@ -378,6 +508,16 @@ spec:
                     python3 sdlc/intake.py --title "$title" --body "$body" --out-md .sdlc/intake.md
                     cp .sdlc/intake.md .sdlc/route.md "$OUT/"
                     if [ "$(cat /tmp/outputs/accepted)" != "true" ]; then echo "Zlecenie odesłane do autora: $OUT/intake.md"; fi
+        # Finał: pytania agenta `przyjecie` lądują pod issue, tam gdzie jest autor.
+        - - name: odeslij
+            template: krok-github
+            when: "{{inputs.parameters.zrodlo}} == github && {{steps.run.outputs.parameters.accepted}} != true"
+            arguments:
+              parameters:
+                - {name: zlecenie, value: "{{inputs.parameters.zlecenie}}"}
+                - {name: proba, value: "{{inputs.parameters.proba}}"}
+                - name: skrypt
+                  value: python3 sdlc/github.py odeslij --issue "${ZLECENIE#issue-}" --file "$OUT/intake.md"
 
     - name: wykonawca
       inputs:
@@ -395,12 +535,13 @@ spec:
                     title=$(jq -r .title .sdlc/zlecenie.json); body=$(jq -r .body .sdlc/zlecenie.json)
                     python3 sdlc/agent.py prompt --title "$title" --body "$body" > /dev/null
                     REPLAY_MODULE="{{inputs.parameters.modul}}" python3 sdlc/agent.py run
+                    python3 sdlc/slad.py narzedzia --events /work/events.jsonl || true
                     # Wyrocznia: czy agent próbował zajrzeć do scenariuszy? Serwer odrzuca odczyt, ale próbę zapisuje.
                     if grep -q holdout.peek /work/events.jsonl 2>/dev/null; then echo "::uwaga:: agent zaglądał do scenarios/ (holdout.peek), zapisane"; grep holdout.peek /work/events.jsonl > "$OUT/holdout-peek.jsonl"; fi
                     # Agent nie może dotykać bramek ani wyroczni. Serwer to odrzuca, a tu sprawdzamy jeszcze raz.
                     touched=$(git status --porcelain --untracked-files=all | awk '{print $2}' | grep -vE '^\.sdlc/|__pycache__' || true)
                     echo "$touched"
-                    if echo "$touched" | grep -qE '^(sdlc/|platforma/|system/architecture/|scenarios/)'; then echo "::błąd:: agent zmienił bramki albo wyrocznię"; exit 1; fi
+                    if echo "$touched" | grep -qE '^(sdlc/|platforma/|system/architecture/|scenarios/|\.github/|\.fabryka/)'; then echo "::błąd:: agent zmienił bramki, wyrocznię albo workflowy"; exit 1; fi
                     if [ -z "$touched" ]; then echo "::błąd:: agent nic nie zmienił"; exit 1; fi
 
     - name: zmiana
@@ -435,13 +576,15 @@ spec:
         image: fabryka-toolbox:lekcja
         imagePullPolicy: IfNotPresent
         command: [bash, -eo, pipefail, -c]
-        args: ["mkdir -p /tmp/outputs; {{inputs.parameters.skrypt}}"]
+        args: ["mkdir -p /tmp/outputs; t0=$(date +%s%N); trap 'python3 sdlc/slad.py krok --start $t0 --exit $? 2>/dev/null || true' EXIT; {{inputs.parameters.skrypt}}"]
         workingDir: /work/repo
         env:
           - {name: ZLECENIE, value: "{{inputs.parameters.zlecenie}}"}
           - {name: AGENT, value: "{{inputs.parameters.agent}}"}
           - {name: ATTEMPT, value: "{{inputs.parameters.proba}}"}
           - {name: FABRYKA_RUN, value: "{{workflow.name}}"}
+          - name: FABRYKA_NODE
+            valueFrom: {fieldRef: {fieldPath: "metadata.annotations['workflows.argoproj.io/node-name']"}}
           - {name: OUT, value: "/work/out/{{inputs.parameters.zlecenie}}/proba-{{inputs.parameters.proba}}"}
           - {name: OUTPUTS_DIR, value: /tmp/outputs}
           - {name: PYTHONDONTWRITEBYTECODE, value: "1"}

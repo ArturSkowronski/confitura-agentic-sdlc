@@ -1,5 +1,5 @@
 # Wszystko, czego potrzebujesz na warsztacie. `make help` pokazuje listę.
-.PHONY: help klaster setup linia doctor lekcja klucz a2a wyslij zlecenie replay naiwna odbierz zatwierdz klucze-cosign ksiega-verify port-forward hala test route agents-md przyjecie
+.PHONY: help klaster setup linia doctor lekcja klucz a2a wyslij zlecenie replay naiwna odbierz zatwierdz klucze-cosign ksiega-verify port-forward hala test route agents-md przyjecie github issue ciagnij
 
 help:
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  make %-14s %s\n", $$1, $$2}'
@@ -81,3 +81,12 @@ przyjecie: ## Przyjęcie zlecenia lokalnie (routing + kryteria + pytania agenta)
 
 agents-md: ## Przebuduj AGENTS.md ze źródeł (module.json, docs, ops, historia)
 	@python3 sdlc/context.py agents-md
+
+github: ## Finał: podłącz fabrykę do Twojego forka (issues, Actions, ochrona main, Secret, poller): make github [GH_REPO=login/repo]
+	@scripts/github.sh
+
+issue: ## Finał: zlecenie jako issue na Twoim forku: make issue Z=rabat
+	@. scripts/github-env.sh && python3 sdlc/github.py issue "$(Z)"
+
+ciagnij: ## Finał: fabryka bierze issue teraz, bez czekania na crona: make ciagnij [AGENT=replay]
+	@argo submit -n fabryka --from cronwf/fabryka-ciagnie -p agent=$${AGENT:-kagent} --generate-name fabryka-ciagnie-teraz- -o name | sed 's/^/Poller: /'

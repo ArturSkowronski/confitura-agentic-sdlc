@@ -23,7 +23,7 @@ spec:
       WORK_DIR: /work/repo
       EVENTS_FILE: /work/events.jsonl
       # Rozwiązanie lekcji 2: bramki, linia i wyrocznia są poza zasięgiem zapisu.
-      PROTECTED_PATHS: "sdlc platforma system/architecture scenarios"
+      PROTECTED_PATHS: "sdlc platforma system/architecture scenarios .github .fabryka"
       # Rozwiązanie lekcji 7: wyrocznia poza zasięgiem odczytu; próba zostaje w śladzie jako holdout.peek.
       HIDDEN_PATHS: "scenarios"
     volumeMounts: [{name: work, mountPath: /work}]
