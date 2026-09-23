@@ -4,7 +4,9 @@ import pl.confitura.shop.orders.api.OrderController;
 import pl.confitura.shop.orders.domain.OrderService;
 import pl.confitura.shop.orders.infra.InMemoryOrderRepository;
 import pl.confitura.shop.pricing.DiscountPolicy;
+import pl.confitura.shop.pricing.Money;
 import pl.confitura.shop.pricing.NoDiscount;
+import pl.confitura.shop.pricing.ThresholdDiscount;
 import pl.confitura.shop.pricing.PriceCalculator;
 
 /**
@@ -20,9 +22,9 @@ public final class OrdersModule {
         this.controller = new OrderController(service);
     }
 
-    /** Konfiguracja produkcyjna. */
+    /** Konfiguracja produkcyjna: rabat 10% od koszyka powyżej 500 zł (polityka z pricing-lib). */
     public static OrdersModule production() {
-        return new OrdersModule(new NoDiscount());
+        return new OrdersModule(new ThresholdDiscount(Money.of("500.00"), 10));
     }
 
     public OrderController controller() {
