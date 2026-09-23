@@ -1,6 +1,10 @@
 package pl.confitura.shop.architecture;
 
 import static com.tngtech.archunit.base.DescribedPredicate.describe;
+import static com.tngtech.archunit.core.domain.JavaCall.Predicates.target;
+import static com.tngtech.archunit.core.domain.JavaClass.Predicates.assignableTo;
+import static com.tngtech.archunit.core.domain.properties.HasName.Predicates.nameMatching;
+import static com.tngtech.archunit.core.domain.properties.HasOwner.Predicates.With.owner;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 import static com.tngtech.archunit.library.dependencies.SlicesRuleDefinition.slices;
 
@@ -10,6 +14,7 @@ import com.tngtech.archunit.junit.ArchTest;
 import com.tngtech.archunit.lang.ArchRule;
 import com.tngtech.archunit.library.GeneralCodingRules;
 import com.tngtech.archunit.library.freeze.FreezingArchRule;
+import java.math.BigDecimal;
 
 /**
  * Bramki, których agent nie oszuka: deterministyczne, bez modelu i bez sieci,
@@ -41,5 +46,12 @@ class ArchitectureRulesTest {
             .orShould().dependOnClassesThat().haveFullyQualifiedName("java.text.SimpleDateFormat")
             .because("modele uczone na starym kodzie sięgają po java.util.Date; używamy java.time"));
 
-    // TODO: arytmetyka pieniędzy tylko w pricing-lib (ADR-0001). Na razie pilnuje tego review.
+    @ArchTest
+    static final ArchRule money_arithmetic_only_in_pricing = noClasses()
+            .that().resideOutsideOfPackage("..pricing..")
+            .should().callMethodWhere(
+                target(owner(assignableTo(BigDecimal.class)))
+                .and(target(nameMatching("add|subtract|multiply|divide|setScale"))))
+            .because("ADR-0001: arytmetyka pieniędzy tylko w pricing-lib; "
+                + "serwisy używają Money, nie BigDecimal");
 }
