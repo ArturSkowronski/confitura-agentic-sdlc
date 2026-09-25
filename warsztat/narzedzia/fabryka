@@ -69,6 +69,11 @@ sync() {
     info "Lekcja 1: klaster z agentem probny, bez warsztatu"
   fi
   if ma_target linia; then make -s linia >/dev/null || true; fi
+  # Konfiguracja kontrolera Argo (lekcja 5) i ślad przebiegów (lekcja 10) żyją w klaster.sh, którego sync nie woła:
+  # dokładamy je tu, żeby klaster postawiony na lekcji 1 dogonił kolejne lekcje.
+  [ -f platforma/argo/controller-configmap.yaml ] && kubectl apply --server-side --force-conflicts -f platforma/argo/controller-configmap.yaml >/dev/null 2>&1 || true
+  kubectl -n argo get deploy workflow-controller >/dev/null 2>&1 && kubectl -n argo set env deploy/workflow-controller \
+    OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger.fabryka.svc:4317 OTEL_EXPORTER_OTLP_INSECURE=true OTEL_SERVICE_NAME=argo-workflows >/dev/null 2>&1 || true
   # Klucz księgi jest z Twojego klastra, a checkout lekcji przywraca cosign.pub prowadzącego: odtwórz go z klucza.
   local kdir=platforma/linia/cosign
   if [ -f "$kdir/cosign.key" ] && command -v cosign >/dev/null; then
