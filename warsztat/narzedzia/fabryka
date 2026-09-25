@@ -80,7 +80,7 @@ sync() {
     COSIGN_PASSWORD="" cosign public-key --key "$kdir/cosign.key" > "$kdir/cosign.pub.tmp" 2>/dev/null && mv "$kdir/cosign.pub.tmp" "$kdir/cosign.pub" || rm -f "$kdir/cosign.pub.tmp"
   fi
   [ -f platforma/kyverno/agent-narzedzia.yaml ] && kubectl apply -f platforma/kyverno/agent-narzedzia.yaml >/dev/null 2>&1 || true
-  if [ -f platforma/kagent/agent-przyjecie.yaml ] && ! grep -q 'TODO' platforma/kagent/agent-przyjecie.yaml; then
+  if [ -f platforma/kagent/agent-przyjecie.yaml ] && ! grep -qE '^[[:space:]]+TODO[[:space:]]*$' platforma/kagent/agent-przyjecie.yaml; then
     kubectl apply -f platforma/kagent/agent-przyjecie.yaml >/dev/null 2>&1 || true
   fi
 }
@@ -151,7 +151,7 @@ cmd_mapa() {
   t() { eval "$1" >/dev/null 2>&1 && echo 0 || echo 1; }
   [ $jest = 1 ] || echo "  (klastra nie ma: fabryka start; pokazuję tylko repo)"
   blok 1  "agent jako zasób (Agent probny, A2A)"                  "$(t "[ $jest = 1 ] && k get agent probny")"
-  blok 1  "agent przyjecie z instrukcją"                           "$(t "[ -f platforma/kagent/agent-przyjecie.yaml ] && ! grep -q TODO platforma/kagent/agent-przyjecie.yaml")"
+  blok 1  "agent przyjecie z instrukcją"                           "$(t "[ -f platforma/kagent/agent-przyjecie.yaml ] && ! grep -qE '^[[:space:]]+TODO[[:space:]]*$' platforma/kagent/agent-przyjecie.yaml")"
   blok 2  "warsztat: serwer MCP, pięć narzędzi"                    "$(t "[ $jest = 1 ] && k get mcpserver warsztat")"
   blok 2  "ściana: PROTECTED_PATHS w serwerze"                     "$(t "[ $jest = 1 ] && k get mcpserver warsztat -o jsonpath='{.spec.deployment.env.PROTECTED_PATHS}' | grep -q sdlc")"
   blok 3  "kontekst L1-L5: AGENTS.md i routing"                    "$(t "[ -f sdlc/context.py ] && [ -f AGENTS.md ]")"
@@ -187,7 +187,8 @@ except Exception as e:
 
 sprawdz_1() {
   local f=platforma/kagent/agent-przyjecie.yaml
-  grep -q TODO "$f" && nie "$f: w systemMessage wciąż jest TODO" || ok "instrukcja agenta przyjecie napisana"
+  # TODO w samym polu systemMessage (komentarze w nagłówku pliku też mówią „TODO” i się nie liczą)
+  grep -qE '^[[:space:]]+TODO[[:space:]]*$' "$f" && nie "$f: w systemMessage wciąż jest TODO" || ok "instrukcja agenta przyjecie napisana"
   k get agent przyjecie -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' 2>/dev/null | grep -q True \
     && ok "agent przyjecie wdrożony i Ready" || nie "agent przyjecie nie jest Ready: kubectl apply -f $f"
   local key; key=$(k get secret fabryka-llm -o jsonpath='{.data.LLM_API_KEY}' 2>/dev/null | base64 -d 2>/dev/null)

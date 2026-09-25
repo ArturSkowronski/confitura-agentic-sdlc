@@ -114,7 +114,7 @@ Na końcu `fabryka start` widzisz „Klaster stoi. Adresy na localhost” i wyni
 klastra na zielono. Czerwona pozycja o `origin` znaczy, że pracujesz na repo prowadzącego zamiast na forku.
 
 ```bash
-fabryka mapa                 # ✔ L1 agent jako zasób, reszta bloczków wyszarzona
+fabryka mapa                 # ✔ L1 agent jako zasób (i L3 kontekst, L10 ślad: klaster ma je od startu), reszta wyszarzona
 kubectl get agent -n fabryka # probny  … True
 ```
 
@@ -298,7 +298,7 @@ EOF
 make test                    # obecny kod przechodzi regułę (1-2 minuty)
 make agents-md               # powód reguły trafia do AGENTS.md
 make wyslij
-make naiwna                  # teraz bramka build jest czerwona
+make naiwna                  # teraz bramka build jest czerwona: „Wynik: Failed”, w hali build ✖
 make odbierz
 grep money_arithmetic .sdlc/out/rabat/proba-1/kontrola-1-build.md   # reguła i powód w raporcie
 fabryka sprawdz 6            # ✔ obecny kod przechodzi, ✔ naiwny rabat łamie regułę (2-4 minuty, dwa buildy)
@@ -310,7 +310,7 @@ Teza: holdout zużywa się z każdym użyciem. Materiał: [warsztat/lekcja-07-wy
 
 ```bash
 fabryka lekcja 7
-make replay Z=zwroty-czesciowe     # wyrocznia czerwona: incydent z marca wraca
+make replay Z=zwroty-czesciowe     # „Wynik: Failed”: wyrocznia czerwona, incydent z marca wraca
 make odbierz
 cat .sdlc/out/zwroty-czesciowe/proba-1/kontrola-5-wyrocznia.md   # scenariusz o dwóch zwrotach częściowych
 fabryka sprawdz 7            # ✘ serwer pokazuje agentowi scenarios/
@@ -506,13 +506,16 @@ Rabat w replay kończy się decyzją „człowiek”, bo pricing-lib jest biblio
 Ćwiczenie: kod po bramkach. Ręczna „szybka poprawka” na gałęzi agenta psuje pochodzenie:
 
 ```bash
+git stash -u                 # lokalny cosign.pub (klucz Twojego klastra) blokowałby przełączenie gałęzi
 git fetch origin && git switch agent/issue-<N>
 echo "// szybka poprawka" >> system/orders-service/src/main/java/pl/confitura/shop/orders/OrdersModule.java
 git commit -am "szybka poprawka" && git push
+sleep 30                     # GitHub potrzebuje chwili, żeby uruchomić checki dla nowego commita
 gh pr checks <nr PR> --watch # pochodzenie czerwone: „po commicie z księgi zmieniono kod”
 git revert --no-edit HEAD && git push
+sleep 30
 gh pr checks <nr PR> --watch # pochodzenie znowu zielone
-git switch praca
+git switch praca && git stash pop
 ```
 
 ## Sprzątanie
