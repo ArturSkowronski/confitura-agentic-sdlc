@@ -87,7 +87,9 @@ preflight() {
   [ "$mem" -ge 7000000000 ] 2>/dev/null || umrzyj "Docker ma $((mem / 1024 / 1024 / 1024)) GB pamięci, fabryka potrzebuje co najmniej 8 GB. Codespaces: maszyna 4-rdzeniowa (16 GB); Docker Desktop: Settings → Resources."
   local root; root=$(docker info --format '{{.DockerRootDir}}' 2>/dev/null); [ -d "$root" ] || root=$HOME
   local wolne; wolne=$(df -Pk "$root" 2>/dev/null | awk 'NR==2 {print int($4/1024/1024)}')
-  [ "${wolne:-0}" -ge 10 ] || umrzyj "Za mało miejsca dla Dockera: ${wolne} GB, potrzeba co najmniej 10 GB na obrazy (docker system prune zwalnia miejsce)."
+  # Tuż po starcie codespace'a Docker podaje zaniżone miejsce: odczyt powtarzamy, a wynik tylko ostrzega.
+  [ "${wolne:-0}" -ge 10 ] || { sleep 15; wolne=$(df -Pk "$root" 2>/dev/null | awk 'NR==2 {print int($4/1024/1024)}'); }
+  [ "${wolne:-0}" -ge 10 ] || echo "Uwaga: Docker ma ${wolne} GB wolnego miejsca, fabryka potrzebuje około 10 GB. Jeśli start padnie: docker system prune."
   for t in kind kubectl helm make git python3 java mvn; do command -v "$t" >/dev/null || umrzyj "Brak $t. W Codespaces jest z góry; na laptopie: SETUP.md"; done
 }
 
