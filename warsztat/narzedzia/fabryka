@@ -27,6 +27,10 @@ info() { printf '\033[1m%s\033[0m\n' "$*"; }
 umrzyj() { printf '\033[31m%s\033[0m\n' "$*" >&2; exit 1; }
 
 repo() {
+  # Katalog zamontowany z innym właścicielem (Codespaces, devcontainer): git odmawia pracy, więc go dopuszczamy.
+  if git status --porcelain 2>&1 | grep -q 'dubious ownership'; then
+    git config --global --add safe.directory "$(git status 2>&1 | sed -n "s/.*repository at '\(.*\)'.*/\1/p" | head -1)"
+  fi
   local top; top=$(git rev-parse --show-toplevel 2>/dev/null) || umrzyj "Uruchom w katalogu repo warsztatu (fork confitura-agentic-sdlc)."
   [ -d "$top/system" ] || umrzyj "To nie wygląda na repo warsztatu: brak katalogu system/."
   cd "$top"
@@ -65,17 +69,34 @@ sync() {
     info "Lekcja 1: klaster z agentem probny, bez warsztatu"
   fi
   if ma_target linia; then make -s linia >/dev/null || true; fi
+  # Klucz księgi jest z Twojego klastra, a checkout lekcji przywraca cosign.pub prowadzącego: odtwórz go z klucza.
+  local kdir=platforma/linia/cosign
+  if [ -f "$kdir/cosign.key" ] && command -v cosign >/dev/null; then
+    COSIGN_PASSWORD="" cosign public-key --key "$kdir/cosign.key" > "$kdir/cosign.pub.tmp" 2>/dev/null && mv "$kdir/cosign.pub.tmp" "$kdir/cosign.pub" || rm -f "$kdir/cosign.pub.tmp"
+  fi
   [ -f platforma/kyverno/agent-narzedzia.yaml ] && kubectl apply -f platforma/kyverno/agent-narzedzia.yaml >/dev/null 2>&1 || true
   if [ -f platforma/kagent/agent-przyjecie.yaml ] && ! grep -q 'TODO' platforma/kagent/agent-przyjecie.yaml; then
     kubectl apply -f platforma/kagent/agent-przyjecie.yaml >/dev/null 2>&1 || true
   fi
 }
 
+preflight() {
+  [ "${FABRYKA_BEZ_PREFLIGHT:-0}" = 1 ] && return 0
+  command -v docker >/dev/null && docker info >/dev/null 2>&1 || umrzyj "Docker nie działa. W Codespaces poczekaj, aż kontener skończy start; na laptopie uruchom Docker Desktop."
+  local mem; mem=$(docker info --format '{{.MemTotal}}' 2>/dev/null || echo 0)
+  [ "$mem" -ge 7000000000 ] 2>/dev/null || umrzyj "Docker ma $((mem / 1024 / 1024 / 1024)) GB pamięci, fabryka potrzebuje co najmniej 8 GB. Codespaces: maszyna 4-rdzeniowa (16 GB); Docker Desktop: Settings → Resources."
+  local root; root=$(docker info --format '{{.DockerRootDir}}' 2>/dev/null); [ -d "$root" ] || root=$HOME
+  local wolne; wolne=$(df -Pk "$root" 2>/dev/null | awk 'NR==2 {print int($4/1024/1024)}')
+  [ "${wolne:-0}" -ge 10 ] || umrzyj "Za mało miejsca dla Dockera: ${wolne} GB, potrzeba co najmniej 10 GB na obrazy (docker system prune zwalnia miejsce)."
+  for t in kind kubectl helm make git python3 java mvn; do command -v "$t" >/dev/null || umrzyj "Brak $t. W Codespaces jest z góry; na laptopie: SETUP.md"; done
+}
+
 cmd_start() {
   repo
-  command -v kind >/dev/null || umrzyj "Brak kind. W Codespaces jest z góry; na laptopie: SETUP.md"
+  preflight
   info "Klaster kind „$CLUSTER” (pierwszy raz 5-10 minut)"
-  make -s klaster || umrzyj "make klaster nie przeszedł."
+  # klaster.sh jest idempotentny: na wolniejszej maszynie pody wstają po timeoucie, drugie podejście je zastaje.
+  make -s klaster || { info "Klaster wstaje wolniej niż zwykle, próbuję jeszcze raz"; make -s klaster; } || umrzyj "make klaster nie przeszedł dwa razy. fabryka reset albo pokaż log prowadzącemu."
   sync
   make -s doctor || true
   echo; info "Gotowe. Dalej: fabryka mapa, potem fabryka lekcja 1 (albo dowolny numer)."
@@ -84,6 +105,11 @@ cmd_start() {
 cmd_lekcja() {
   repo; local n; n=$(lekcja_nr "${1:-}"); tagi
   local cel; if [ "$n" = final ]; then git fetch -q origin main 2>/dev/null || git fetch -q "$UPSTREAM" main; cel=FETCH_HEAD; else cel=$(tag_lekcji "$n"); fi
+  # Przebieg w trakcie pracuje na wspólnym dysku /work: przełączenie lekcji nadpisałoby mu repo.
+  if klaster_jest && kontekst && [ -n "$(k get workflows --field-selector status.phase=Running -o name 2>/dev/null)" ]; then
+    echo "Zatrzymuję przebiegi w trakcie (wspólny dysk /work): argo stop"
+    argo stop -n "$NS" --all >/dev/null 2>&1 || k delete workflows --field-selector status.phase=Running >/dev/null 2>&1 || true
+  fi
   if [ -n "$(git status --porcelain)" ]; then
     git stash push -q -u -m "fabryka: przed lekcją $n" && echo "Twoje zmiany są w git stash (git stash list)."
   fi

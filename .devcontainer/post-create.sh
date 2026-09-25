@@ -13,5 +13,7 @@ curl -fsSL -o "$tmp/cosign" "https://github.com/sigstore/cosign/releases/downloa
 sudo install -m 0755 "$tmp/kind" "$tmp/argo" "$tmp/cosign" /usr/local/bin/
 sudo apt-get update -qq && sudo apt-get install -y -qq jq gettext-base >/dev/null
 rm -rf "$tmp"
+git config --global --add safe.directory '*'   # workspace montowany z innym właścicielem
 bash warsztat/narzedzia/instaluj.sh
+sudo ln -sf "$HOME/.local/bin/fabryka" /usr/local/bin/fabryka   # widoczne też w powłokach bez .bashrc (gh codespace ssh -- ...)
 echo "Narzędzia gotowe: kind $(kind version | cut -d' ' -f2), argo $ARGO_VERSION, cosign $COSIGN_VERSION, fabryka."
