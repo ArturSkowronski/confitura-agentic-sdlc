@@ -105,6 +105,25 @@ ADR-0001, raz jako kontekst, raz jako bramka) jest jej najkrótszym dowodem.
 Jeśli jesteś spóźniony: lekcja 3 i 4 jako demo (bez ćwiczeń), lekcja 10 tylko odsłona 11.
 Ćwiczenia, których nie wolno pominąć: 2 (chronione ścieżki), 6 (ArchUnit), 9A (suspend).
 
+## Codespaces, fabryka i autopilot
+
+Domyślna droga uczestnika to fork i GitHub Codespaces (`.devcontainer/`, maszyna 4-rdzeniowa, 16 GB).
+Nic nie instaluje na laptopie, a darmowy limit konta GitHub Free (120 core-godzin) starcza na 30 godzin.
+Poproś salę, żeby `fabryka start` zrobili przed warsztatem: pierwsze postawienie klastra trwa około 10 minut.
+
+Narzędzie `fabryka` jest instalowane poza repo, więc skakanie po tagach go nie usuwa:
+
+| Sytuacja na sali | Co mówisz |
+|---|---|
+| ktoś się spóźnił albo zgubił | `fabryka lekcja N`: repo i klaster w stanie lekcji N, zmiany w stash |
+| nie wiadomo, czy ćwiczenie jest zrobione | `fabryka sprawdz N`: deterministycznie, bez modelu |
+| ćwiczenie nie wychodzi | `/fabryka-autopilot N` w Claude Code, a w ostateczności `fabryka rozwiazanie N` |
+| nikt nie rozumie, co już zbudowaliśmy | `fabryka mapa` na projektorze: bloczki fabryki zapalają się lekcja po lekcji |
+| klaster w dziwnym stanie | `fabryka reset` (10 minut, więc raczej przerwa) |
+
+Autopilot nigdy nie zatwierdza za człowieka: przy `make zatwierdz` i przy PR zatrzymuje się i pyta.
+To dobry moment na zdanie z lekcji 9, pokazane na żywo.
+
 ## Finał na GitHubie
 
 `warsztat/final-github.md`, 12 minut. Nie mieści się w obecnym przebiegu bez cięcia: lekcje 3 i 4 prowadź

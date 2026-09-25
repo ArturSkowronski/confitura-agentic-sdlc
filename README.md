@@ -17,14 +17,42 @@ Ludzie piszą specyfikacje i scenariusze. Agenci piszą kod. Fabryka decyduje, g
 
 ## Start
 
-Setup zrób przed warsztatem, zajmuje około 20 minut: [SETUP.md](SETUP.md).
+Najprościej w przeglądarce: zrób fork, a na forku **Code → Codespaces → Create codespace on main**.
+Codespace sam instaluje wszystkie narzędzia. Potem w terminalu:
 
 ```bash
-git clone https://github.com/ArturSkowronski/confitura-agentic-sdlc
-cd confitura-agentic-sdlc
-make klaster     # kind + Argo Workflows + kagent + Kyverno + Jaeger
-make doctor      # wszystko zielone = gotowe
+fabryka start       # kind + Argo Workflows + kagent + Kyverno + Jaeger i wszystko, co przewiduje lekcja
+fabryka lekcja 1    # albo dowolny numer: repo i klaster w stanie tej lekcji
+fabryka mapa        # które bloczki fabryki już działają
+fabryka sprawdz 1   # czy ćwiczenie jest zrobione
 ```
+
+Utknąłeś: w Claude Code `/fabryka-autopilot 1`, albo `fabryka rozwiazanie 1`. Szczegóły, także
+droga przez laptopa: [warsztat/start.md](warsztat/start.md). Setup na laptopie: [SETUP.md](SETUP.md).
+
+### Z terminala: `gh`
+
+Jeśli wolisz terminal od klikania, całą drogę zrobisz przez `gh` (GitHub CLI):
+
+```bash
+gh auth refresh -h github.com -s codespace          # raz: gh potrzebuje uprawnienia do Codespaces
+gh repo fork ArturSkowronski/confitura-agentic-sdlc --clone=false
+gh codespace create -R <login>/confitura-agentic-sdlc -b main -m standardLinux32gb   # 4 rdzenie, 16 GB
+gh codespace ssh -c <nazwa>                          # terminal w codespace (nazwa: gh codespace list)
+fabryka start                                        # już w codespace
+gh codespace ports forward 2746:2746 16686:16686 8082:8082 -c <nazwa>   # hala, Jaeger, kagent na localhost
+gh codespace stop -c <nazwa>                         # po warsztacie; gh codespace delete usuwa go całkiem
+```
+
+Dodatkowo:
+
+- Błąd `This API operation needs the "codespace" scope` znaczy, że pominąłeś pierwszą linię.
+  `gh auth refresh` otworzy przeglądarkę, żeby potwierdzić nowe uprawnienie.
+- `gh codespace ssh` łączy się z serwerem SSH w kontenerze (feature `sshd` w `.devcontainer`).
+  Pierwsze połączenie może chwilę czekać, aż codespace się uruchomi.
+- Codespace zasypia po 30 minutach bezczynności i nie zużywa wtedy limitu obliczeń, tylko miejsce na dysku.
+  `gh codespace list` pokazuje stan, a `gh codespace delete` zwalnia miejsce.
+- Fork zawsze na swoim koncie: finał warsztatu otwiera issues i PR-y na Twoim forku, nie w repo prowadzącego.
 
 ## Lekcje
 
@@ -56,6 +84,8 @@ jest w następnym commicie. Zostałeś w tyle? `make lekcja N=4` ustawia gałą�
 | `platforma/` | Manifesty klastra: kagent (agenci, model), warsztat (narzędzia MCP), linia (Argo), Kyverno, Jaeger, poller GitHuba |
 | `.github/workflows/fabryka.yml` | Finał: bramki fabryki na GitHubie (build, wyrocznia, review, pochodzenie księgi) |
 | `zlecenia/` | Zlecenia dla fabryki (od lekcji 4) |
+| `warsztat/narzedzia/` | CLI `fabryka` (lekcja, mapa, sprawdz, rozwiazanie, autopilot) i prompty autopilota. Instalacja: `make narzedzia` |
+| `.devcontainer/` | GitHub Codespaces: cały stos w przeglądarce, bez instalacji na laptopie |
 | `warsztat/` | Materiały lekcji, notatki prowadzącego i trzy decki: `keynote/` (pptx w stylistyce Visdoma), `przewodnik.html` (48 slajdów krok po kroku z kartą wykonawcy), `slajdy.html` (tezy) |
 | `warsztat/grafiki/` | Dwanaście ilustracji w stylu JVM Weekly: sceny w `prompts.md`, generator `gen.py` |
 

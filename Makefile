@@ -1,5 +1,5 @@
 # Wszystko, czego potrzebujesz na warsztacie. `make help` pokazuje listę.
-.PHONY: help klaster setup linia doctor lekcja klucz a2a wyslij zlecenie replay naiwna odbierz zatwierdz klucze-cosign ksiega-verify port-forward hala test route agents-md przyjecie github issue ciagnij
+.PHONY: help klaster setup linia doctor lekcja klucz a2a wyslij zlecenie replay naiwna odbierz zatwierdz klucze-cosign ksiega-verify port-forward hala test route agents-md przyjecie github issue ciagnij narzedzia
 
 help:
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  make %-14s %s\n", $$1, $$2}'
@@ -90,3 +90,6 @@ issue: ## Finał: zlecenie jako issue na Twoim forku: make issue Z=rabat
 
 ciagnij: ## Finał: fabryka bierze issue teraz, bez czekania na crona: make ciagnij [AGENT=replay]
 	@argo submit -n fabryka --from cronwf/fabryka-ciagnie -p agent=$${AGENT:-kagent} --generate-name fabryka-ciagnie-teraz- -o name | sed 's/^/Poller: /'
+
+narzedzia: ## Narzędzia uczestnika poza repo: fabryka (lekcja, mapa, sprawdz, rozwiazanie, autopilot) i /fabryka-autopilot w Claude Code
+	@bash warsztat/narzedzia/instaluj.sh

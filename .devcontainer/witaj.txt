@@ -1,0 +1,12 @@
+
+  Fabryka oprogramowania od podstaw · Confitura 2026
+
+  1. fabryka start          klaster z całą fabryką (pierwszy raz około 10 minut)
+  2. fabryka lekcja 1       albo dowolny numer: repo i klaster w stanie tej lekcji
+  3. fabryka mapa           które bloczki fabryki już działają
+  4. fabryka sprawdz 1      czy ćwiczenie jest zrobione
+
+  Utknąłeś? W Claude Code: /fabryka-autopilot 1 (albo: fabryka rozwiazanie 1).
+  Hala: port 2746, Jaeger: 16686, kagent: 8082 (zakładka PORTS).
+  Więcej: warsztat/start.md
+

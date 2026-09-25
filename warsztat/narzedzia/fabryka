@@ -1,0 +1,328 @@
+#!/usr/bin/env bash
+# fabryka: narzędzia uczestnika warsztatu „Fabryka oprogramowania od podstaw”.
+#
+# Instalowane poza repo (~/.local/bin/fabryka, dane w ~/.local/share/fabryka), zawsze z main. Dzięki temu
+# przełączenie repo na starą lekcję ich nie usuwa. Instalacja: make narzedzia (z main) albo fabryka aktualizuj.
+#
+#   fabryka start               klaster kind + wszystko, co przewiduje bieżąca lekcja, na koniec doctor
+#   fabryka lekcja N            repo i klaster w stanie lekcji N (1-10, final): tag, stash Twoich zmian, sync klastra
+#   fabryka mapa                które bloczki fabryki działają w tym repo i klastrze
+#   fabryka sprawdz [N]         czy ćwiczenie lekcji N jest zrobione (deterministycznie, bez modelu)
+#   fabryka rozwiazanie N       wstaw rozwiązanie ćwiczenia N (pliki z lekcji N+1) i wdróż je do klastra
+#   fabryka autopilot N         prompt autopilota lekcji N dla Claude (w Claude Code: /fabryka-autopilot N)
+#   fabryka reset               klaster od zera (kind delete + start), gdy stan jest nie do odratowania
+#   fabryka aktualizuj          pobierz najnowsze narzędzia z main
+# Bez pipefail: sprawdzenia to rury z grep -q, a grep kończy się na pierwszym trafieniu i pisarz dostaje SIGPIPE.
+set -u
+
+UPSTREAM=${FABRYKA_UPSTREAM:-https://github.com/ArturSkowronski/confitura-agentic-sdlc.git}
+DATA=${FABRYKA_DATA:-$HOME/.local/share/fabryka}
+CLUSTER=${KIND_CLUSTER:-fabryka}
+NS=fabryka
+
+ok()   { printf '  \033[32m✔\033[0m %s\n' "$*"; }
+nie()  { printf '  \033[31m✘\033[0m %s\n' "$*"; BLAD=1; }
+brak() { printf '  \033[2m·\033[0m \033[2m%s\033[0m\n' "$*"; }
+info() { printf '\033[1m%s\033[0m\n' "$*"; }
+umrzyj() { printf '\033[31m%s\033[0m\n' "$*" >&2; exit 1; }
+
+repo() {
+  local top; top=$(git rev-parse --show-toplevel 2>/dev/null) || umrzyj "Uruchom w katalogu repo warsztatu (fork confitura-agentic-sdlc)."
+  [ -d "$top/system" ] || umrzyj "To nie wygląda na repo warsztatu: brak katalogu system/."
+  cd "$top"
+}
+lekcja_nr() {
+  case "${1:-}" in
+    final|finał|11) echo final ;;
+    [1-9]|10|0[1-9]) echo $((10#$1)) ;;
+    "") local t; t=$(git describe --tags --match 'lekcja-*' --abbrev=0 2>/dev/null); [ -n "$t" ] && echo $((10#${t#lekcja-})) || umrzyj "Podaj numer lekcji." ;;
+    *) umrzyj "Nieznana lekcja: $1 (1-10 albo final)" ;;
+  esac
+}
+tag_lekcji() { [ "$1" = final ] && echo "" || printf 'lekcja-%02d' "$1"; }
+ma_target() { make -n "$1" >/dev/null 2>&1; }
+klaster_jest() { command -v kind >/dev/null && kind get clusters 2>/dev/null | grep -qx "$CLUSTER"; }
+kontekst() { kubectl config use-context "kind-$CLUSTER" >/dev/null 2>&1; }
+k() { kubectl -n "$NS" "$@"; }
+
+# ------------------------------------------------------------------ tagi lekcji: z forka, a jeśli fork ich nie ma, z repo prowadzącego
+tagi() {
+  git rev-parse -q --verify refs/tags/lekcja-10 >/dev/null && return 0
+  git fetch -q --tags origin 2>/dev/null || true
+  git rev-parse -q --verify refs/tags/lekcja-10 >/dev/null && return 0
+  echo "Fork nie ma tagów lekcji, pobieram je z $UPSTREAM"
+  git fetch -q "$UPSTREAM" '+refs/tags/lekcja-*:refs/tags/lekcja-*' || umrzyj "Nie udało się pobrać tagów lekcji."
+}
+
+# ------------------------------------------------------------------ klaster w stanie bieżącej lekcji
+sync() {
+  klaster_jest || umrzyj "Brak klastra kind „$CLUSTER”. Najpierw: fabryka start"
+  kontekst
+  if ma_target setup; then
+    info "Klaster: make setup (obrazy, warsztat, agenci, linia; kilka minut przy pierwszym razie)"
+    make -s setup || umrzyj "make setup nie przeszedł. Pokaż ten log prowadzącemu albo spróbuj: fabryka reset"
+  else
+    info "Lekcja 1: klaster z agentem probny, bez warsztatu"
+  fi
+  if ma_target linia; then make -s linia >/dev/null || true; fi
+  [ -f platforma/kyverno/agent-narzedzia.yaml ] && kubectl apply -f platforma/kyverno/agent-narzedzia.yaml >/dev/null 2>&1 || true
+  if [ -f platforma/kagent/agent-przyjecie.yaml ] && ! grep -q 'TODO' platforma/kagent/agent-przyjecie.yaml; then
+    kubectl apply -f platforma/kagent/agent-przyjecie.yaml >/dev/null 2>&1 || true
+  fi
+}
+
+cmd_start() {
+  repo
+  command -v kind >/dev/null || umrzyj "Brak kind. W Codespaces jest z góry; na laptopie: SETUP.md"
+  info "Klaster kind „$CLUSTER” (pierwszy raz 5-10 minut)"
+  make -s klaster || umrzyj "make klaster nie przeszedł."
+  sync
+  make -s doctor || true
+  echo; info "Gotowe. Dalej: fabryka mapa, potem fabryka lekcja 1 (albo dowolny numer)."
+}
+
+cmd_lekcja() {
+  repo; local n; n=$(lekcja_nr "${1:-}"); tagi
+  local cel; if [ "$n" = final ]; then git fetch -q origin main 2>/dev/null || git fetch -q "$UPSTREAM" main; cel=FETCH_HEAD; else cel=$(tag_lekcji "$n"); fi
+  if [ -n "$(git status --porcelain)" ]; then
+    git stash push -q -u -m "fabryka: przed lekcją $n" && echo "Twoje zmiany są w git stash (git stash list)."
+  fi
+  git switch -q -C praca "$cel" || umrzyj "Nie udało się przełączyć na $cel."
+  date -u +%Y-%m-%dT%H:%M:%SZ > "$(git rev-parse --git-dir)/fabryka-lekcja"   # od kiedy liczą się przebiegi tej lekcji
+  echo "Gałąź praca = $( [ "$n" = final ] && echo 'main (finał)' || echo "$cel" )"
+  klaster_jest && sync || echo "Klastra jeszcze nie ma: fabryka start"
+  echo
+  local mat; mat=$(ls warsztat/ 2>/dev/null | grep -E "^lekcja-$(printf %02d "${n/final/11}")|^final" | head -1)
+  info "Lekcja $n gotowa."
+  echo "  materiał:    warsztat/${mat:-final-github.md}"
+  echo "  ćwiczenie:   fabryka autopilot $n  (albo w Claude Code: /fabryka-autopilot $n)"
+  echo "  sprawdzenie: fabryka sprawdz $n"
+}
+
+cmd_reset() {
+  repo
+  info "Kasuję klaster kind „$CLUSTER” i stawiam go od zera"
+  kind delete cluster --name "$CLUSTER" >/dev/null 2>&1 || true
+  cmd_start
+}
+
+# ------------------------------------------------------------------ mapa bloczków
+cmd_mapa() {
+  repo; local jest=0; klaster_jest && kontekst && jest=1
+  local tag; tag=$(git describe --tags --match 'lekcja-*' 2>/dev/null || echo "?")
+  info "Fabryka w tym repo: $tag, gałąź $(git branch --show-current)"
+  local wt=""; [ $jest = 1 ] && wt=$(k get workflowtemplate fabryka -o json 2>/dev/null)
+  blok() { # $1 lekcja, $2 nazwa, $3 warunek (0 = jest)
+    if [ "$3" = 0 ]; then ok "L$1  $2"; else brak "L$1  $2"; fi
+  }
+  t() { eval "$1" >/dev/null 2>&1 && echo 0 || echo 1; }
+  [ $jest = 1 ] || echo "  (klastra nie ma: fabryka start; pokazuję tylko repo)"
+  blok 1  "agent jako zasób (Agent probny, A2A)"                  "$(t "[ $jest = 1 ] && k get agent probny")"
+  blok 1  "agent przyjecie z instrukcją"                           "$(t "[ -f platforma/kagent/agent-przyjecie.yaml ] && ! grep -q TODO platforma/kagent/agent-przyjecie.yaml")"
+  blok 2  "warsztat: serwer MCP, pięć narzędzi"                    "$(t "[ $jest = 1 ] && k get mcpserver warsztat")"
+  blok 2  "ściana: PROTECTED_PATHS w serwerze"                     "$(t "[ $jest = 1 ] && k get mcpserver warsztat -o jsonpath='{.spec.deployment.env.PROTECTED_PATHS}' | grep -q sdlc")"
+  blok 3  "kontekst L1-L5: AGENTS.md i routing"                    "$(t "[ -f sdlc/context.py ] && [ -f AGENTS.md ]")"
+  blok 3  "własność pojęcia: owns w pricing-lib"                   "$(t "python3 -c \"import json,sys;sys.exit(0 if json.load(open('system/pricing-lib/module.json')).get('owns') else 1)\"")"
+  blok 4  "przyjęcie: kryteria przed agentem"                      "$(t "[ -f sdlc/intake.py ]")"
+  blok 4  "anulowanie z kryteriami"                                "$(t "grep -qi '^kryteria' zlecenia/anulowanie.md")"
+  blok 5  "linia w Argo (WorkflowTemplate fabryka)"                "$(t "[ -n \"\$wt\" ]")"
+  blok 6  "bramki: kontrola jakości w linii"                       "$(t "echo \"\$wt\" | grep -q '\"name\": *\"kontrola\"'")"
+  blok 6  "reguła ArchUnit dla ADR-0001"                           "$(t "grep -q 'BigDecimal' system/architecture/src/test/java/pl/confitura/shop/architecture/ArchitectureRulesTest.java && ! grep -q 'TODO: arytmetyka' system/architecture/src/test/java/pl/confitura/shop/architecture/ArchitectureRulesTest.java")"
+  blok 7  "wyrocznia w linii"                                      "$(t "echo \"\$wt\" | grep -q wyrocznia")"
+  blok 7  "ściana: scenarios/ ukryte (HIDDEN_PATHS)"               "$(t "[ $jest = 1 ] && k get mcpserver warsztat -o jsonpath='{.spec.deployment.env.HIDDEN_PATHS}' | grep -q scenarios")"
+  blok 8  "ryzyko i review w linii"                                "$(t "echo \"\$wt\" | grep -q '\"name\": *\"review\"'")"
+  blok 8  "reguła review dla klucza idempotencji"                  "$(t "grep -qi idempot sdlc/review-rules.json && python3 -c \"import json;r=[x for x in json.load(open('sdlc/review-rules.json'))['rules'] if x['kind']=='llm' and 'idempot' in (x.get('rule','')+x.get('fail','')).lower()];assert r\"")"
+  blok 9  "człowiek: suspend w linii"                              "$(t "echo \"\$wt\" | grep -q '\"suspend\"'")"
+  blok 9  "polityka Kyverno: wykonawca ma tylko warsztat"          "$(t "[ -f platforma/kyverno/agent-narzedzia.yaml ] && ! grep -q 'expression: \"true\"' platforma/kyverno/agent-narzedzia.yaml")"
+  blok 10 "księga i podpis cosign"                                 "$(t "echo \"\$wt\" | grep -q ksiega && [ $jest = 1 ] && k get secret fabryka-cosign")"
+  blok 10 "ślad: Argo wysyła trace do Jaegera"                     "$(t "[ $jest = 1 ] && kubectl -n argo get deploy workflow-controller -o jsonpath='{.spec.template.spec.containers[0].env}' | grep -q OTEL")"
+  blok F  "GitHub: poller issue i PR (make github)"                "$(t "[ $jest = 1 ] && k get cronworkflow fabryka-ciagnie")"
+}
+
+# ------------------------------------------------------------------ sprawdzenie ćwiczenia
+warsztat_py() { # wywołanie Workspace w podzie serwera MCP, bez zapisu zdarzeń do księgi
+  k exec deploy/warsztat -- python3 -c "
+import sys; sys.path.insert(0, '/app')
+from workspace import Workspace
+ws = Workspace.from_env(); ws.events_file = None
+try:
+    print($1)
+except Exception as e:
+    print('Rejected:', e)
+" 2>/dev/null
+}
+
+sprawdz_1() {
+  local f=platforma/kagent/agent-przyjecie.yaml
+  grep -q TODO "$f" && nie "$f: w systemMessage wciąż jest TODO" || ok "instrukcja agenta przyjecie napisana"
+  k get agent przyjecie -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' 2>/dev/null | grep -q True \
+    && ok "agent przyjecie wdrożony i Ready" || nie "agent przyjecie nie jest Ready: kubectl apply -f $f"
+  local key; key=$(k get secret fabryka-llm -o jsonpath='{.data.LLM_API_KEY}' 2>/dev/null | base64 -d 2>/dev/null)
+  if [ -z "$key" ] || [ "$key" = brak ]; then brak "odpowiedź agenta: pominięta, brak klucza do modelu (make klucz)"; return; fi
+  local out; out=$(python3 sdlc/a2a.py --agent przyjecie --task "Anulowanie zamówienia. Klient może anulować zamówienie, dopóki nie jest opłacone." 2>&1)
+  # Model niedostępny (limit, brak środków, sieć) to nie błąd ćwiczenia: instrukcja i wdrożenie są sprawdzone wyżej.
+  if [ $? -ne 0 ] || printf '%s' "$out" | grep -qiE 'A2A (błąd|HTTP)|429|credit|quota|rate limit|nie zwrócił tekstu'; then
+    local powod; powod=$(printf '%s' "$out" | grep -oiE '429|credit[a-z_]*|quota|rate limit|HTTP [0-9]+|connection refused' | head -1)
+    brak "odpowiedź agenta: model nie odpowiada (${powod:-$(printf '%s' "$out" | tail -1 | cut -c1-70)}), sprawdź później"; return
+  fi
+  local n; n=$(printf '%s\n' "$out" | grep -cE '^\s*([-*•]|[0-9]+\.)\s')
+  [ "$n" -ge 2 ] && [ "$n" -le 6 ] && ok "agent odpowiada listą $n pytań" || nie "agent nie odpowiada listą 2-4 pytań (widzę $n punktów)"
+}
+sprawdz_2() {
+  k get mcpserver warsztat -o jsonpath='{.spec.deployment.env.PROTECTED_PATHS}' | grep -q sdlc && ok "PROTECTED_PATHS wdrożone w serwerze" || nie "w klastrze PROTECTED_PATHS nie zawiera sdlc (kubectl apply -f platforma/warsztat/mcpserver.yaml)"
+  for p in sdlc/policy.json platforma/kind.yaml system/architecture/pom.xml; do
+    warsztat_py "ws.write_file('$p.fabryka-sprawdz', 'x')" | grep -q '^Rejected' && ok "zapis do $p odrzucony przez serwer" \
+      || { nie "serwer przyjął zapis do $p"; k exec deploy/warsztat -- rm -f "/work/repo/$p.fabryka-sprawdz" 2>/dev/null; }
+  done
+}
+sprawdz_3() {
+  local m; m=$(python3 sdlc/context.py route --title "Rabat 10% dla zamówień powyżej 500 zł" 2>/dev/null | grep -oE 'trafia do `[a-z-]+`' | head -1 | tr -d '`' | sed 's/trafia do //')
+  echo "$m" | grep -q pricing-lib && ok "routing: rabat trafia do pricing-lib" || nie "routing wskazuje ${m:-?}: uzupełnij owns w system/pricing-lib/module.json"
+  grep -q "pricing-lib" AGENTS.md && ok "AGENTS.md przebudowany" || nie "brak AGENTS.md: make agents-md"
+}
+sprawdz_4() {
+  grep -qiE '^\s*(#+\s*)?kryteria' zlecenia/anulowanie.md && ok "anulowanie ma sekcję Kryteria" || nie "zlecenia/anulowanie.md bez sekcji Kryteria:"
+  local t b; t=$(python3 sdlc/zlecenia.py anulowanie --title); b=$(python3 sdlc/zlecenia.py anulowanie --body)
+  python3 sdlc/intake.py --title "$t" --body "$b" >/dev/null 2>&1
+  python3 -c "import json,sys;sys.exit(0 if json.load(open('.sdlc/intake.json'))['accepted'] else 1)" 2>/dev/null \
+    && ok "przyjęcie: zlecenie przyjęte" || nie "przyjęcie wciąż odsyła anulowanie (make przyjecie Z=anulowanie pokaże dlaczego)"
+}
+sprawdz_5() {
+  k get workflowtemplate fabryka >/dev/null 2>&1 && ok "linia wdrożona" || nie "brak linii: make linia"
+  # Liczą się tylko przebiegi od przełączenia na lekcję: stare, z innych lekcji, nie są dowodem.
+  local od; od=$(cat "$(git rev-parse --git-dir)/fabryka-lekcja" 2>/dev/null || echo 1970-01-01T00:00:00Z)
+  local s; s=$(k get workflows -o json 2>/dev/null | OD="$od" python3 -c "
+import json,os,sys
+d=json.load(sys.stdin)['items']
+ok=[w for w in d if any(p.get('name')=='zlecenie' and p.get('value')=='rabat' for p in w['spec'].get('arguments',{}).get('parameters',[]))
+    and w.get('status',{}).get('phase')=='Succeeded' and w['metadata']['creationTimestamp']>=os.environ['OD']]
+print(len(ok))")
+  [ "${s:-0}" -ge 1 ] && ok "rabat przeszedł przez linię ($s przebieg(ów))" || nie "brak udanego przebiegu rabatu: make replay Z=rabat"
+  make -s odbierz >/dev/null 2>&1; [ -s .sdlc/out/rabat/proba-1/zmiana.patch ] && ok "łatka odebrana: .sdlc/out/rabat/proba-1/zmiana.patch" || nie "brak łatki po make odbierz"
+}
+sprawdz_6() {
+  local f=system/architecture/src/test/java/pl/confitura/shop/architecture/ArchitectureRulesTest.java
+  grep -q 'TODO: arytmetyka' "$f" && { nie "w $f wciąż jest TODO"; return; } || ok "reguła zamiast TODO"
+  info "  mvn verify na obecnym kodzie (1-2 min)"
+  (cd system && mvn -B -q verify >/tmp/fabryka-mvn.log 2>&1) && ok "obecny kod przechodzi regułę" || { nie "build czerwony na obecnym kodzie: reguła jest za szeroka (log: /tmp/fabryka-mvn.log)"; return; }
+  info "  naiwny rabat w OrderService (nagranie) ma być czerwony (1-2 min)"
+  # Katalog roboczy, nie HEAD: reguła, którą właśnie dopisałeś, nie musi być jeszcze w commicie.
+  local tmp; tmp=$(mktemp -d); tar -cf - --exclude target system sdlc/replays | tar -x -C "$tmp"
+  (cd "$tmp" && git init -q && git apply sdlc/replays/rabat-w-zamowieniach.patch && cd system && mvn -B -q verify >"$tmp/mvn.log" 2>&1); local code=$?
+  if [ $code -ne 0 ] && grep -q 'ArchitectureRulesTest' "$tmp/mvn.log"; then ok "naiwny rabat łamie regułę architektury"; else nie "naiwny rabat przechodzi: reguła go nie łapie"; fi
+  rm -rf "$tmp"
+  grep -qi 'bigdecimal' AGENTS.md && ok "powód reguły trafił do AGENTS.md" || brak "AGENTS.md bez nowej reguły: make agents-md (i .because jednym literałem)"
+}
+sprawdz_7() {
+  k get mcpserver warsztat -o jsonpath='{.spec.deployment.env.HIDDEN_PATHS}' | grep -q scenarios && ok "HIDDEN_PATHS wdrożone" || nie "w klastrze HIDDEN_PATHS nie zawiera scenarios"
+  warsztat_py "ws.read_file('scenarios/index.json')[:60]" | grep -q '^Rejected' && ok "odczyt wyroczni odrzucony przez serwer" || nie "serwer pokazuje agentowi scenarios/"
+  warsztat_py "ws.write_file('sdlc/.fabryka-sprawdz', 'x')" | grep -q '^Rejected' && ok "ściana z lekcji 2 nadal stoi" || nie "PROTECTED_PATHS zniknęły przy zmianie"
+}
+sprawdz_8() {
+  python3 - <<'PY' && ok "reguła llm dla klucza idempotencji w soczewce correctness" || nie "brak poprawnej reguły llm (correctness, pass/fail/example_fail, o kluczu idempotencji)"
+import json, sys
+rules = json.load(open("sdlc/review-rules.json"))["rules"]
+hit = [r for r in rules if r.get("kind") == "llm" and r.get("lens") == "correctness"
+       and "idempot" in (r.get("rule", "") + r.get("fail", "")).lower() and all(r.get(k) for k in ("pass", "fail", "example_fail"))]
+sys.exit(0 if hit else 1)
+PY
+}
+sprawdz_9() {
+  local wt; wt=$(k get workflowtemplate fabryka -o json 2>/dev/null)
+  echo "$wt" | python3 -c "
+import json,sys
+t={x['name']:x for x in json.load(sys.stdin)['spec']['templates']}
+czekaj=t.get('czekaj',{}); czl=t.get('czlowiek',{})
+uses=any(s.get('template')=='czekaj' for g in czl.get('steps',[]) for s in g)
+out=czekaj.get('outputs',{}).get('parameters',[])
+sys.exit(0 if 'suspend' in czekaj and uses and any(p.get('name')=='kto' for p in out) else 1)" \
+    && ok "A: krok czlowiek czeka (suspend z wyjściem kto) i jest wdrożony" || nie "A: we wdrożonej linii brak kroku czekaj (suspend, wyjście kto) w szablonie czlowiek: make linia"
+  kubectl apply --dry-run=server -f platforma/kyverno/test/zly-agent.yaml >/tmp/fabryka-kyverno.log 2>&1 \
+    && nie "B: Kyverno przepuszcza złego agenta (make: kubectl apply -f platforma/kyverno/agent-narzedzia.yaml)" || ok "B: Kyverno odrzuca złego agenta"
+  kubectl apply --dry-run=server -f platforma/kagent/agent-wykonawca.yaml >/dev/null 2>&1 && ok "B: prawdziwy wykonawca nadal przechodzi" || nie "B: polityka blokuje też prawdziwego wykonawcę"
+}
+sprawdz_10() {
+  make -s odbierz >/dev/null 2>&1
+  local f; f=$(ls -t .sdlc/out/*/proba-*/ledger.jsonl 2>/dev/null | head -1)
+  [ -n "$f" ] || { nie "brak księgi: przepuść zlecenie przez linię (make replay Z=rabat), potem make odbierz"; return; }
+  python3 sdlc/ledger.py --file "$f" verify >/dev/null 2>&1 && ok "łańcuch księgi cały: $f" || nie "łańcuch księgi przerwany: $f (przywróć plik po ćwiczeniu z manipulacją)"
+  cosign verify-blob --key platforma/linia/cosign/cosign.pub --bundle "${f%.jsonl}.sigstore.json" --insecure-ignore-tlog "$f" >/dev/null 2>&1 \
+    && ok "podpis cosign pasuje" || nie "podpis nie pasuje albo go brak (make klucze-cosign, potem nowy przebieg)"
+}
+sprawdz_final() {
+  k get secret fabryka-github >/dev/null 2>&1 && ok "Secret fabryka-github w klastrze" || nie "brak Secretu: make github"
+  k get cronworkflow fabryka-ciagnie >/dev/null 2>&1 && ok "poller fabryka-ciagnie" || nie "brak pollera: make github"
+  local repo_gh; repo_gh=$(k get secret fabryka-github -o jsonpath='{.data.GH_REPO}' 2>/dev/null | base64 -d 2>/dev/null)
+  [ -n "$repo_gh" ] && gh pr list -R "$repo_gh" --state all --search "head:agent/issue-" --json number --jq length 2>/dev/null | grep -qv '^0$' \
+    && ok "fabryka wystawiła PR na $repo_gh" || nie "brak PR-a od fabryki: make issue Z=rabat, potem make ciagnij AGENT=replay"
+}
+
+cmd_sprawdz() {
+  repo; local n; n=$(lekcja_nr "${1:-}"); BLAD=0
+  if [ "$n" != 3 ] && [ "$n" != 4 ] && [ "$n" != 8 ]; then klaster_jest || umrzyj "Brak klastra: fabryka start"; kontekst; fi
+  info "Sprawdzam lekcję $n"
+  "sprawdz_$n"
+  echo; [ $BLAD = 0 ] && { info "Lekcja $n: zielono."; return 0; } || { echo "Lekcja $n: czerwono. Popraw albo: fabryka rozwiazanie $n"; return 1; }
+}
+
+# ------------------------------------------------------------------ rozwiązanie: pliki ćwiczenia z następnej lekcji
+pliki_cwiczenia() {
+  case "$1" in
+    1) echo platforma/kagent/agent-przyjecie.yaml ;;
+    2|7) echo platforma/warsztat/mcpserver.yaml ;;
+    3) echo system/pricing-lib/module.json ;;
+    4) echo zlecenia/anulowanie.md ;;
+    6) echo system/architecture/src/test/java/pl/confitura/shop/architecture/ArchitectureRulesTest.java ;;
+    8) echo sdlc/review-rules.json ;;
+    9) echo platforma/linia/fabryka.yaml platforma/kyverno/agent-narzedzia.yaml ;;
+    *) echo "" ;;
+  esac
+}
+cmd_rozwiazanie() {
+  repo; local n; n=$(lekcja_nr "${1:-}"); tagi
+  local pliki; pliki=$(pliki_cwiczenia "$n")
+  if [ -z "$pliki" ]; then
+    case "$n" in
+      5) echo "Lekcja 5 nie zmienia plików. Rozwiązanie to przebieg: make replay Z=rabat, potem make odbierz." ;;
+      10) echo "Lekcja 10 to ćwiczenie z manipulacją księgą: make replay Z=rabat, make odbierz, make ksiega-verify F=<ledger.jsonl>." ;;
+      *) echo "Finał: make github, make issue Z=rabat, make ciagnij AGENT=replay (warsztat/final-github.md)." ;;
+    esac
+    return 0
+  fi
+  local nast; nast=$(tag_lekcji $((n + 1)))
+  info "Rozwiązanie lekcji $n: $pliki z $nast"
+  # shellcheck disable=SC2086
+  git checkout "$nast" -- $pliki && git reset -q -- $pliki
+  git --no-pager diff --stat -- $pliki
+  case "$n" in 3|6) make -s agents-md >/dev/null 2>&1 && echo "AGENTS.md przebudowany" ;; esac
+  if klaster_jest; then kontekst; case "$n" in 1) kubectl apply -f platforma/kagent/agent-przyjecie.yaml >/dev/null && kubectl wait --for=condition=Ready agent/przyjecie -n "$NS" --timeout=180s >/dev/null ;; 3|4|8) make -s wyslij >/dev/null ;; *) sync ;; esac; fi
+  echo; echo "Porównaj ze swoją wersją: git stash list / git diff. Sprawdzenie: fabryka sprawdz $n"
+}
+
+cmd_autopilot() {
+  local n; n=$(lekcja_nr "${1:-}"); local f="$DATA/autopilot/$( [ "$n" = final ] && echo final || printf %02d "$n").md"
+  [ -f "$f" ] || umrzyj "Brak promptu $f. Uruchom: fabryka aktualizuj"
+  cat "$f"
+}
+
+cmd_aktualizuj() {
+  local tmp; tmp=$(mktemp -d)
+  if git rev-parse --show-toplevel >/dev/null 2>&1 && git fetch -q origin main 2>/dev/null && git archive FETCH_HEAD warsztat/narzedzia 2>/dev/null | tar -x -C "$tmp" 2>/dev/null; then :;
+  else git -C "$tmp" init -q && git -C "$tmp" fetch -q --depth 1 "$UPSTREAM" main && git -C "$tmp" archive FETCH_HEAD warsztat/narzedzia | tar -x -C "$tmp" || umrzyj "Nie udało się pobrać narzędzi."; fi
+  bash "$tmp/warsztat/narzedzia/instaluj.sh"; rm -rf "$tmp"
+}
+
+pomoc() { sed -n '2,15p' "$0" | sed 's/^# \{0,1\}//'; }
+
+case "${1:-pomoc}" in
+  start) cmd_start ;;
+  lekcja) cmd_lekcja "${2:-}" ;;
+  mapa) cmd_mapa ;;
+  sprawdz|sprawdź) cmd_sprawdz "${2:-}" ;;
+  rozwiazanie|rozwiązanie) cmd_rozwiazanie "${2:-}" ;;
+  autopilot) cmd_autopilot "${2:-}" ;;
+  reset) cmd_reset ;;
+  aktualizuj) cmd_aktualizuj ;;
+  sync) repo; sync ;;
+  *) pomoc ;;
+esac
