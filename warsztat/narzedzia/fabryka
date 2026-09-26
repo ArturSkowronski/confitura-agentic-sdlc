@@ -307,7 +307,7 @@ cmd_sprawdz() {
   if [ "$n" != 3 ] && [ "$n" != 4 ] && [ "$n" != 8 ]; then klaster_jest || umrzyj "Brak klastra: fabryka start"; kontekst; fi
   info "Sprawdzam lekcję $n"
   "sprawdz_$n"
-  echo; [ $BLAD = 0 ] && { info "Lekcja $n: zielono."; return 0; } || { echo "Lekcja $n: czerwono. Popraw albo: fabryka rozwiazanie $n"; return 1; }
+  echo; [ $BLAD = 0 ] && { info "Lekcja $n: zielono."; return 0; } || { echo "Lekcja $n: czerwono. Popraw albo: fabryka rozwiaz $n (bez modelu, wypisuje każdy krok)"; return 1; }
 }
 
 # ------------------------------------------------------------------ rozwiązanie: pliki ćwiczenia z następnej lekcji
@@ -370,11 +370,11 @@ cmd_rozwiaz() {
     case "$n" in
       1) uruchom kubectl apply -f platforma/kagent/agent-przyjecie.yaml; uruchom kubectl wait --for=condition=Ready agent/przyjecie -n "$NS" --timeout=180s ;;
       3|4|8) uruchom make -s wyslij >/dev/null ;;
-      5) uruchom make -s replay Z=rabat; uruchom make -s odbierz ;;
+      5) uruchom make -s replay Z=rabat; krok "\$ make odbierz"; make -s odbierz | wc -l | xargs -I{} echo "    odebrane pliki: {} (.sdlc/out/)" ;;
       10) krok "\$ make replay Z=rabat   (w tle; próba 2 staje na człowieku)"
           make -s replay Z=rabat > /tmp/fabryka-rozwiaz-10.log 2>&1 &
           czekaj_i_zatwierdz; wait; tail -2 /tmp/fabryka-rozwiaz-10.log | sed 's/^/    /'
-          uruchom make -s odbierz ;;
+          krok "\$ make odbierz"; make -s odbierz | wc -l | xargs -I{} echo "    odebrane pliki: {} (.sdlc/out/)" ;;
       *) krok "\$ fabryka sync   (make setup, make linia, Kyverno, konfiguracja Argo, klucz cosign)"; sync ;;
     esac
   else
