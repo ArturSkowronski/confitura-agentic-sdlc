@@ -80,7 +80,12 @@ def call(method: str, path: str, data: dict | None = None, *, ok_missing: bool =
     except urllib.error.HTTPError as err:
         if ok_missing and err.code == 404:
             return None
-        raise RuntimeError(f"GitHub {method} {path}: HTTP {err.code} {err.read()[:300]!r}") from err
+        body = err.read()[:300]
+        if err.code == 403 and b"not accessible by integration" in body:
+            raise SystemExit("GitHub odmówił (403): to token codespace'a, który nie zmienia ustawień repo.\n"
+                             "Zaloguj się swoim kontem: env -u GITHUB_TOKEN gh auth login -h github.com -s repo,workflow\n"
+                             "Potem jeszcze raz: make github") from err
+        raise RuntimeError(f"GitHub {method} {path}: HTTP {err.code} {body!r}") from err
     return json.loads(body) if body else None
 
 

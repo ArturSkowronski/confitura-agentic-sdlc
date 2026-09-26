@@ -11,6 +11,8 @@ if [ -z "${GH_REPO:-}" ]; then
   GH_REPO=$(printf '%s' "$url" | sed -nE 's#^(https://github\.com/|git@github\.com:)([^/]+/[^/.]+)(\.git)?$#\2#p')
 fi
 [ -n "${GH_REPO:-}" ] || { echo "Nie znam Twojego forka. Ustaw origin na fork albo podaj: make github GH_REPO=login/confitura-agentic-sdlc"; exit 1; }
+# Token integracji codespace'a (ghu_) nie zmieni ustawień repo: traktujemy go jak brak tokenu.
+case "${GH_TOKEN:-}" in ghu_*) GH_TOKEN="" ;; esac
 if [ -z "${GH_TOKEN:-}" ]; then
   command -v gh >/dev/null || { echo "Brak GH_TOKEN i brak gh. Zaloguj się: gh auth login, albo podaj GH_TOKEN (fine-grained: contents, issues, pull requests, administration)"; exit 1; }
   if [ "${CODESPACES:-}" = true ]; then
