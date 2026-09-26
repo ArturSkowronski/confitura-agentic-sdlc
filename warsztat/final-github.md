@@ -29,6 +29,8 @@ issue (etykieta fabryka) ─▶ fabryka-ciagnie ─▶ linia w Argo ─▶ PR na
 
 ## Co masz
 
+0. Tylko w Codespaces, raz: `env -u GITHUB_TOKEN gh auth login -h github.com -s repo,workflow`. Token codespace'a
+   nie zmienia ustawień repo, więc bez tego `make github` kończy się HTTP 403.
 1. Podłącz fork: `make github`. Skrypt włącza w forku issues, Actions i auto-merge, zakłada etykiety,
    chroni `main` czterema checkami, wgrywa klucz cosign Twojego klastra na `main`, a w klastrze tworzy
    Secret `fabryka-github` i poller `fabryka-ciagnie`.

@@ -13,7 +13,24 @@ fi
 [ -n "${GH_REPO:-}" ] || { echo "Nie znam Twojego forka. Ustaw origin na fork albo podaj: make github GH_REPO=login/confitura-agentic-sdlc"; exit 1; }
 if [ -z "${GH_TOKEN:-}" ]; then
   command -v gh >/dev/null || { echo "Brak GH_TOKEN i brak gh. Zaloguj się: gh auth login, albo podaj GH_TOKEN (fine-grained: contents, issues, pull requests, administration)"; exit 1; }
-  GH_TOKEN=$(gh auth token)
+  if [ "${CODESPACES:-}" = true ]; then
+    # W codespace gh domyślnie bierze GITHUB_TOKEN codespace'a. To token integracji: wypchnie kod i założy issue,
+    # ale nie zmieni ustawień repo (HTTP 403 „Resource not accessible by integration”). Bierzemy Twoje logowanie gh.
+    GH_TOKEN=$(env -u GITHUB_TOKEN -u GH_TOKEN gh auth token 2>/dev/null || true)
+    if [ -z "$GH_TOKEN" ]; then
+      cat <<'MSG'
+W Codespaces make github potrzebuje Twojego logowania gh, nie tokenu codespace'a (ten nie zmienia ustawień repo).
+Zaloguj się raz w tym terminalu (kod z terminala wpisujesz na github.com/login/device):
+
+  env -u GITHUB_TOKEN gh auth login -h github.com -s repo,workflow
+
+Potem jeszcze raz: make github
+MSG
+      exit 1
+    fi
+  else
+    GH_TOKEN=$(gh auth token)
+  fi
 fi
 export GH_REPO GH_TOKEN
 echo "Fork: https://github.com/$GH_REPO"

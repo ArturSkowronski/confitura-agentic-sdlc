@@ -526,8 +526,14 @@ Issue na Twoim forku to zlecenie, PR to wynik, a GitHub Actions sprawdzają poch
 fabryka lekcja final         # repo na main forka, klaster w stanie finału
 git remote -v                # origin = Twój fork, nie ArturSkowronski/…
 gh auth status               # Logged in, zakresy repo i workflow
+# tylko w Codespaces, raz: własne logowanie gh (token codespace'a nie zmienia ustawień repo, make github dostałby 403)
+env -u GITHUB_TOKEN gh auth login -h github.com -s repo,workflow
 make github                  # fork: issues, Actions, auto-merge, etykiety, ochrona main, klucz cosign; Secret i poller w klastrze
 ```
+
+W Codespaces `gh` domyślnie używa tokenu codespace'a (`GITHUB_TOKEN`). Wypycha kod i zakłada issues, ale ustawień
+repo nie zmieni: bez własnego logowania `make github` kończy się `HTTP 403 Resource not accessible by integration`.
+`make github` sam bierze Twoje logowanie i podpowiada komendę, jeśli go nie ma.
 
 `make github` wypisuje, co ustawił. Jeśli Actions nie dały się włączyć: w forku zakładka **Actions →
 I understand my workflows, go ahead and enable them**.
@@ -579,6 +585,7 @@ Na forku zostają issues i PR-y z finału. Jeśli dostałeś klucz do modelu na 
 | Przebieg wisi jako Pending | Limit WIP 3 i jeden dysk: `argo stop -n fabryka --all` |
 | Przebieg stoi na żółto | Czeka na człowieka: `argo list -n fabryka`, potem `make zatwierdz W=<nazwa>` |
 | `fabryka sprawdz` czerwone, nie wiesz czemu | porównaj z `rozwiazania/lekcja-NN/*-fN.*`, uruchom `fabryka autopilot N` albo `fabryka rozwiaz N` (bez modelu, wypisuje każdy krok) |
+| `make github`: HTTP 403 „Resource not accessible by integration” | w Codespaces: `env -u GITHUB_TOKEN gh auth login -h github.com -s repo,workflow`, potem `make github` |
 | Claude Code w Codespaces: po zalogowaniu „localhost odmówił połączenia” | skopiuj adres z paska i w drugim terminalu `fabryka callback '<adres>'` (sekcja Krok 1A) |
 | Zniknęły Twoje zmiany po `fabryka lekcja` | Są w `git stash list`; `git stash pop` |
 | `detected dubious ownership` | `git config --global --add safe.directory "$(pwd)"` |
