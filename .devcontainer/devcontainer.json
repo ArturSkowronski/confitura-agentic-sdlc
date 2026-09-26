@@ -11,8 +11,7 @@
     "ghcr.io/devcontainers/features/kubectl-helm-minikube:1": { "minikube": "none" },
     "ghcr.io/devcontainers/features/java:1": { "version": "21", "jdkDistro": "tem", "installMaven": "true" },
     "ghcr.io/devcontainers/features/github-cli:1": {},
-    "ghcr.io/devcontainers/features/sshd:1": {},
-    "ghcr.io/anthropics/devcontainer-features/claude-code:1.0": {}
+    "ghcr.io/devcontainers/features/sshd:1": {}
   },
   "postCreateCommand": "bash .devcontainer/post-create.sh",
   "postStartCommand": "sudo sysctl -q -w fs.inotify.max_user_watches=524288 fs.inotify.max_user_instances=512 || true",
@@ -25,7 +24,7 @@
     "16686": { "label": "Jaeger (ślady)", "onAutoForward": "silent" }
   },
   "customizations": {
-    "vscode": { "extensions": ["redhat.vscode-yaml", "ms-kubernetes-tools.vscode-kubernetes-tools"] },
+    "vscode": { "extensions": ["anthropic.claude-code", "redhat.vscode-yaml", "ms-kubernetes-tools.vscode-kubernetes-tools"] },
     "codespaces": { "openFiles": ["warsztat/start.md"] }
   }
 }

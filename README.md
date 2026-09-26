@@ -80,6 +80,19 @@ prawym dolnym rogu możesz odrzucić (**Deny**).
 
 ![Zakładka Terminal i wiersz poleceń](warsztat/grafiki/klik/4-terminal.png)
 
+**Logowanie Claude Code w Codespaces (raz).** Po zalogowaniu claude.ai przekierowuje przeglądarkę na
+`http://localhost:…/callback`, a to `localhost` jest na Twoim laptopie, nie w codespace. Dlatego:
+
+1. W terminalu codespace'a: `fabryka zaloguj`. Otwórz wypisany link i zaloguj się.
+2. Przeglądarka skończy na stronie „localhost odmówił połączenia”. Skopiuj **cały** adres z paska
+   (`http://localhost:…/callback?code=…`).
+3. Otwórz drugi terminal (**+** w panelu Terminal) i wpisz `fabryka callback '<wklejony adres>'`.
+   Pierwszy terminal pokaże, że jesteś zalogowany.
+
+Bez przeglądarki: na laptopie `claude setup-token`, a token dodaj jako sekret Codespaces
+`CLAUDE_CODE_OAUTH_TOKEN` (github.com/settings/codespaces → **New secret**, dostęp do Twojego forka).
+Claude nie jest potrzebny, żeby przejść warsztat: `fabryka rozwiaz N` rozwiązuje lekcję bez modelu.
+
 Albo to samo z terminala na laptopie (potrzebny tylko `gh`):
 
 ```bash
@@ -565,7 +578,8 @@ Na forku zostają issues i PR-y z finału. Jeśli dostałeś klucz do modelu na 
 | `make setup nie przeszedł` przy `fabryka lekcja` | Zwykle sieć przy budowie obrazów: powtórz `fabryka lekcja N` |
 | Przebieg wisi jako Pending | Limit WIP 3 i jeden dysk: `argo stop -n fabryka --all` |
 | Przebieg stoi na żółto | Czeka na człowieka: `argo list -n fabryka`, potem `make zatwierdz W=<nazwa>` |
-| `fabryka sprawdz` czerwone, nie wiesz czemu | porównaj z `rozwiazania/lekcja-NN/*-fN.*`, uruchom `fabryka autopilot N` albo `fabryka rozwiazanie N` |
+| `fabryka sprawdz` czerwone, nie wiesz czemu | porównaj z `rozwiazania/lekcja-NN/*-fN.*`, uruchom `fabryka autopilot N` albo `fabryka rozwiaz N` (bez modelu, wypisuje każdy krok) |
+| Claude Code w Codespaces: po zalogowaniu „localhost odmówił połączenia” | skopiuj adres z paska i w drugim terminalu `fabryka callback '<adres>'` (sekcja Krok 1A) |
 | Zniknęły Twoje zmiany po `fabryka lekcja` | Są w `git stash list`; `git stash pop` |
 | `detected dubious ownership` | `git config --global --add safe.directory "$(pwd)"` |
 | Klaster w dziwnym stanie po skakaniu w tył | `fabryka reset` (około 10 minut) |

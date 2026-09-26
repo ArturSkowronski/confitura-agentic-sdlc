@@ -8,9 +8,10 @@
 #   fabryka lekcja N            repo i klaster w stanie lekcji N (1-10, final): tag, stash Twoich zmian, sync klastra
 #   fabryka mapa                które bloczki fabryki działają w tym repo i klastrze
 #   fabryka sprawdz [N]         czy ćwiczenie lekcji N jest zrobione (deterministycznie, bez modelu)
-#   fabryka rozwiazanie N       wstaw rozwiązanie ćwiczenia N (pliki z lekcji N+1) i wdróż je do klastra
 #   fabryka autopilot N         uruchom Claude Code z promptem lekcji N (--prompt: tylko wypisz prompt)
 #   fabryka gotowe [N]          gotowe pliki ćwiczenia N w rozwiazania/lekcja-NN/*-fN.* (tworzy je też fabryka lekcja)
+#   fabryka rozwiaz N           (solve) podmień pliki na końcowe, wdróż, wypisz każdy krok, sprawdź; bez modelu
+#   fabryka zaloguj             logowanie Claude Code (w Codespaces z fabryka callback '<adres z przeglądarki>')
 #   fabryka reset               klaster od zera (kind delete + start), gdy stan jest nie do odratowania
 #   fabryka adresy              klikalne linki do hali (Argo), Jaegera i kagent: w Codespaces i na laptopie
 #   fabryka witaj               powitanie i pierwsze kroki (działa na każdej lekcji)
@@ -322,25 +323,95 @@ pliki_cwiczenia() {
     *) echo "" ;;
   esac
 }
-cmd_rozwiazanie() {
+
+# fabryka rozwiaz N (solve): deterministyczne rozwiązanie lekcji bez modelu. Podmienia pliki ćwiczenia na wersję z lekcji
+# N+1, wdraża je do klastra i wypisuje każdy krok: skąd, dokąd, sumy kontrolne przed i po, każdą komendę. Na końcu sprawdz.
+krok() { printf '  [%s] %s\n' "$(date +%H:%M:%S)" "$*" >&2; }   # na stderr: przekierowanie wyniku komendy nie ukrywa kroku
+uruchom() { krok "\$ $*"; "$@"; }
+sha() { [ -f "$1" ] || { echo "brak"; return; }; { sha256sum "$1" 2>/dev/null || shasum -a 256 "$1"; } | cut -c1-12; }
+
+czekaj_i_zatwierdz() {   # lekcja 10: replay staje na człowieku; zatwierdzamy jako fabryka-rozwiaz i czekamy na koniec
+  local w="" i
+  for i in $(seq 1 90); do
+    w=$(argo list -n "$NS" --running -o name 2>/dev/null | head -1)
+    if [ -n "$w" ] && argo get -n "$NS" "$w" -o json 2>/dev/null | python3 -c "import json,sys;d=json.load(sys.stdin);sys.exit(0 if any(n['type']=='Suspend' and n['phase']=='Running' for n in d['status'].get('nodes',{}).values()) else 1)"; then
+      krok "przebieg $w czeka na człowieka"; uruchom env KTO=fabryka-rozwiaz make -s zatwierdz W="$w"; break
+    fi
+    sleep 10
+  done
+  [ -n "$w" ] && uruchom argo wait -n "$NS" "$w" >/dev/null
+}
+
+cmd_rozwiaz() {
   repo; local n; n=$(lekcja_nr "${1:-}"); tagi
-  local pliki; pliki=$(pliki_cwiczenia "$n")
-  if [ -z "$pliki" ]; then
-    case "$n" in
-      5) echo "Lekcja 5 nie zmienia plików. Rozwiązanie to przebieg: make replay Z=rabat, potem make odbierz." ;;
-      10) echo "Lekcja 10 to ćwiczenie z manipulacją księgą: make replay Z=rabat, make odbierz, make ksiega-verify F=<ledger.jsonl>." ;;
-      *) echo "Finał: make github, make issue Z=rabat, make ciagnij AGENT=replay (warsztat/final-github.md)." ;;
-    esac
-    return 0
+  info "fabryka rozwiaz $n: rozwiązanie bez modelu, krok po kroku"
+  if [ "$n" = final ]; then
+    echo "  Finał zakłada issue i PR na Twoim forku, więc nie robię go za Ciebie. Kroki (warsztat/final-github.md):"
+    echo "    make github && make issue Z=rabat && make ciagnij AGENT=replay && gh pr list"
+    return 1
   fi
-  local nast; nast=$(tag_lekcji $((n + 1)))
-  info "Rozwiązanie lekcji $n: $pliki z $nast"
-  # shellcheck disable=SC2086
-  git checkout "$nast" -- $pliki && git reset -q -- $pliki
-  git --no-pager diff --stat -- $pliki
-  case "$n" in 3|6) make -s agents-md >/dev/null 2>&1 && echo "AGENTS.md przebudowany" ;; esac
-  if klaster_jest; then kontekst; case "$n" in 1) kubectl apply -f platforma/kagent/agent-przyjecie.yaml >/dev/null && kubectl wait --for=condition=Ready agent/przyjecie -n "$NS" --timeout=180s >/dev/null ;; 3|4|8) make -s wyslij >/dev/null ;; *) sync ;; esac; fi
-  echo; echo "Porównaj ze swoją wersją: git stash list / git diff. Sprawdzenie: fabryka sprawdz $n"
+  local pliki; pliki=$(pliki_cwiczenia "$n")
+  if [ -n "$pliki" ]; then
+    local nast; nast=$(tag_lekcji $((n + 1))); local p przed po tmp
+    krok "źródło: tag $nast (wersja końcowa ćwiczenia $n)"
+    for p in $pliki; do
+      przed=$(sha "$p"); tmp=$(mktemp); [ -f "$p" ] && cp "$p" "$tmp"
+      git show "$nast:$p" > "$p" || umrzyj "Nie mogę odczytać $nast:$p"
+      po=$(sha "$p")
+      if [ "$przed" = "$po" ]; then krok "bez zmian   $p (już jest wersją końcową)"
+      else krok "podmieniony $p  ← $nast:$p  (sha256 $przed → $po, $(git diff --no-index --numstat "$tmp" "$p" 2>/dev/null | awk '{print "+"$1" -"$2" linii"}'))"; fi
+      rm -f "$tmp"
+    done
+    gotowe "$n" >/dev/null && krok "kopia wzorcowa: rozwiazania/$(printf 'lekcja-%02d' "$n")/ (pliki *-f$n)"
+    case "$n" in 3|6) uruchom make -s agents-md >/dev/null ;; esac
+  fi
+  if klaster_jest; then
+    kontekst
+    case "$n" in
+      1) uruchom kubectl apply -f platforma/kagent/agent-przyjecie.yaml; uruchom kubectl wait --for=condition=Ready agent/przyjecie -n "$NS" --timeout=180s ;;
+      3|4|8) uruchom make -s wyslij >/dev/null ;;
+      5) uruchom make -s replay Z=rabat; uruchom make -s odbierz ;;
+      10) krok "\$ make replay Z=rabat   (w tle; próba 2 staje na człowieku)"
+          make -s replay Z=rabat > /tmp/fabryka-rozwiaz-10.log 2>&1 &
+          czekaj_i_zatwierdz; wait; tail -2 /tmp/fabryka-rozwiaz-10.log | sed 's/^/    /'
+          uruchom make -s odbierz ;;
+      *) krok "\$ fabryka sync   (make setup, make linia, Kyverno, konfiguracja Argo, klucz cosign)"; sync ;;
+    esac
+  else
+    krok "klastra nie ma: pomijam wdrożenie (fabryka start, potem fabryka rozwiaz $n jeszcze raz)"
+  fi
+  [ -n "$pliki" ] && { krok "zmiany względem lekcji $n (git diff --stat):"; git --no-pager diff --stat -- $pliki | sed 's/^/    /'; }
+  echo
+  cmd_sprawdz "$n"
+}
+
+# Logowanie Claude Code w Codespaces: po zalogowaniu claude.ai przekierowuje na http://localhost:<port>/callback, a to
+# localhost jest na laptopie, nie w codespace. Adres z paska przeglądarki trzeba dostarczyć do codespace'a: fabryka callback.
+claude_zalogowany() { [ -n "${ANTHROPIC_API_KEY:-}${CLAUDE_CODE_OAUTH_TOKEN:-}" ] || claude auth status >/dev/null 2>&1; }
+
+instrukcja_logowania() {
+  cat <<'TXT'
+  Logowanie Claude Code w Codespaces (raz na codespace):
+    1. W tym terminalu: fabryka zaloguj   (albo /login w Claude Code). Otwórz link, zaloguj się.
+    2. Przeglądarka skończy na stronie „localhost odmówił połączenia”. To normalne: skopiuj CAŁY adres z paska
+       (zaczyna się od http://localhost:...callback?code=...).
+    3. Drugi terminal (+ w panelu Terminal): fabryka callback 'WKLEJONY_ADRES'. Pierwszy terminal pokaże zalogowanie.
+  Bez przeglądarki: na laptopie claude setup-token, a token dodaj jako sekret Codespaces CLAUDE_CODE_OAUTH_TOKEN
+  (github.com/settings/codespaces → New secret, dostęp: Twój fork), potem przebuduj albo uruchom ponownie codespace.
+TXT
+}
+
+cmd_zaloguj() {
+  command -v claude >/dev/null || umrzyj "Brak komendy claude. Zainstaluj: curl -fsSL https://claude.ai/install.sh | bash"
+  if claude_zalogowany; then info "Claude Code jest już zalogowany."; return 0; fi
+  instrukcja_logowania; echo
+  exec claude auth login
+}
+
+cmd_callback() {
+  local u="${1:-}"
+  case "$u" in http://localhost:*|http://127.0.0.1:*) ;; *) umrzyj "Podaj adres z paska przeglądarki w cudzysłowie: fabryka callback 'http://localhost:…/callback?code=…'" ;; esac
+  curl -fsS "$u" >/dev/null && info "Przekazane do Claude Code. Wróć do pierwszego terminala." || umrzyj "Nikt nie słucha pod tym adresem: logowanie w pierwszym terminalu wygasło albo zostało przerwane. Zacznij od fabryka zaloguj."
 }
 
 cmd_autopilot() {
@@ -348,15 +419,20 @@ cmd_autopilot() {
   [ -f "$f" ] || umrzyj "Brak promptu $f. Uruchom: fabryka aktualizuj"
   # Wewnątrz Claude Code (komenda /fabryka-autopilot) albo w rurze: tylko prompt, Claude wykona go sam.
   if [ "${2:-}" = "--prompt" ] || [ -n "${CLAUDECODE:-}" ] || [ ! -t 1 ]; then cat "$f"; return 0; fi
-  if ! command -v claude >/dev/null; then
+  if ! command -v claude >/dev/null || ! claude --version >/dev/null 2>&1; then
     echo "Autopilot uruchamia Claude Code, a w tym terminalu nie ma komendy claude."
-    echo "  Zainstaluj:  npm install -g @anthropic-ai/claude-code   (potem: claude, zaloguj się raz)"
-    echo "  Bez Claude:  fabryka rozwiazanie $n                        (wstawia gotowe rozwiązanie, bez modelu)"
+    echo "  Zainstaluj:  curl -fsSL https://claude.ai/install.sh | bash   (potem: fabryka zaloguj)"
+    echo "  Bez Claude:  fabryka rozwiaz $n                             (rozwiązanie bez modelu, wypisuje każdy krok)"
     echo "  Gotowy plik: rozwiazania/lekcja-$(printf %02d "${n/final/11}")/  (pojawia się po fabryka lekcja $n)"
     echo "  Sam prompt:  fabryka autopilot $n --prompt"
     return 1
   fi
   repo
+  if ! claude_zalogowany; then
+    echo "Claude Code nie jest zalogowany. Zaloguj się raz, potem uruchom autopilota jeszcze raz."
+    [ -n "${CODESPACE_NAME:-}" ] && instrukcja_logowania || echo "  claude auth login"
+    return 1
+  fi
   # Te same uprawnienia co komenda /fabryka-autopilot: lista z jej nagłówka allowed-tools.
   local narz; narz=$(sed -n 's/^allowed-tools: //p' "$HOME/.claude/commands/fabryka-autopilot.md" 2>/dev/null | sed 's/, /,/g')
   info "Autopilot lekcji $n: uruchamiam Claude Code z promptem lekcji. Patrz, co robi; o zatwierdzenia pyta Ciebie."
@@ -435,16 +511,19 @@ cmd_aktualizuj() {
   bash "$tmp/warsztat/narzedzia/instaluj.sh"; rm -rf "$tmp"
 }
 
-pomoc() { sed -n '2,17p' "$0" | sed 's/^# \{0,1\}//'; }
+pomoc() { sed -n '2,18p' "$0" | sed 's/^# \{0,1\}//'; }
 
 case "${1:-pomoc}" in
   start) cmd_start ;;
   lekcja) cmd_lekcja "${2:-}" ;;
   mapa) cmd_mapa ;;
   sprawdz|sprawdź) cmd_sprawdz "${2:-}" ;;
-  rozwiazanie|rozwiązanie) cmd_rozwiazanie "${2:-}" ;;
+  rozwiazanie|rozwiązanie) cmd_rozwiaz "${2:-}" ;;   # dawna nazwa, ten sam deterministyczny skrypt
   autopilot) cmd_autopilot "${2:-}" "${3:-}" ;;
   gotowe) cmd_gotowe "${2:-}" ;;
+  rozwiaz|rozwiąż|solve) cmd_rozwiaz "${2:-}" ;;
+  zaloguj|login) cmd_zaloguj ;;
+  callback) cmd_callback "${2:-}" ;;
   reset) cmd_reset ;;
   adresy|linki) cmd_adresy ;;
   witaj) cmd_witaj ;;

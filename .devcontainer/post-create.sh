@@ -16,4 +16,12 @@ rm -rf "$tmp"
 git config --global --add safe.directory '*'   # workspace montowany z innym właścicielem
 bash warsztat/narzedzia/instaluj.sh
 sudo ln -sf "$HOME/.local/bin/fabryka" /usr/local/bin/fabryka   # widoczne też w powłokach bez .bashrc (gh codespace ssh -- ...)
+# Claude Code natywnym instalatorem (jeden plik, bez Node). Feature devcontainera instalował go przez npm na Node 18,
+# czyli w starej wersji. Błąd sieci nie zatrzymuje codespace'a: fabryka autopilot powie, jak doinstalować.
+if curl -fsSL https://claude.ai/install.sh | bash >/dev/null 2>&1; then
+  sudo ln -sf "$HOME/.local/bin/claude" /usr/local/bin/claude
+  echo "Claude Code $(claude --version 2>/dev/null | cut -d' ' -f1). Logowanie: fabryka zaloguj"
+else
+  echo "Uwaga: Claude Code się nie zainstalował. Później: curl -fsSL https://claude.ai/install.sh | bash"
+fi
 echo "Narzędzia gotowe: kind $(kind version | cut -d' ' -f2), argo $ARGO_VERSION, cosign $COSIGN_VERSION, fabryka."
