@@ -54,9 +54,31 @@ Sprawdzenie: `kind get clusters` nie wypisuje `fabryka`, a `command -v fabryka` 
 Darmowe dla kont GitHub Free: 120 core-godzin i 15 GB w miesiącu, czyli 30 godzin na maszynie
 4-rdzeniowej. Po wyczerpaniu limitu bez karty GitHub blokuje użycie, nie wystawia rachunku.
 
-1. Zrób fork https://github.com/ArturSkowronski/confitura-agentic-sdlc na swoim koncie.
-2. Na forku: **Code → Codespaces → ⋯ → New with options**, maszyna **4-core, 16 GB**, **Create codespace**.
-3. Poczekaj, aż terminal pokaże powitanie „Fabryka oprogramowania od podstaw” (około 5 minut).
+Numery na zrzutach to kolejność kliknięć.
+
+**1. Fork.** Otwórz https://github.com/ArturSkowronski/confitura-agentic-sdlc i kliknij **Fork** w prawym
+górnym rogu (1). Na następnej stronie zostaw nazwę i kliknij zielony **Create fork**.
+
+![Przycisk Fork w prawym górnym rogu repo](warsztat/grafiki/klik/1-fork.png)
+
+**2. Codespace na forku.** Jesteś teraz na stronie swojego forka (`<login>/confitura-agentic-sdlc`).
+Kliknij zielony **Code** (2), zakładkę **Codespaces** (3) i **Create codespace on main**: na świeżym forku to
+duży zielony przycisk, a jeśli masz już jakiś codespace, to **+** (4). Maszyna 4-core to jedyna opcja, repo
+samo jej wymaga. Budowa trwa około 5 minut.
+
+![Code, zakładka Codespaces, Create codespace](warsztat/grafiki/klik/2-codespace.png)
+
+**3. Zaufaj repozytorium.** Przy pierwszym otwarciu terminala VS Code pyta „Do you trust the authors of the
+files in this folder?”. Kliknij **Trust Folder & Continue** (5). Bez tego terminal się nie uruchomi.
+
+![Trust Folder & Continue](warsztat/grafiki/klik/3-zaufaj.png)
+
+**4. Terminal.** Zakładka **Terminal** w dolnym panelu (6). Jeśli panelu nie ma: menu **☰** w lewym górnym
+rogu → **Terminal** → **New Terminal**. Terminal wita listą czterech komend „Fabryka oprogramowania od
+podstaw”. Tu wpisujesz komendy z tego README (7), zaczynając od Kroku 2. Okienko Red Hat o telemetrii w
+prawym dolnym rogu możesz odrzucić (**Deny**).
+
+![Zakładka Terminal i wiersz poleceń](warsztat/grafiki/klik/4-terminal.png)
 
 Albo to samo z terminala na laptopie (potrzebny tylko `gh`):
 
@@ -74,7 +96,13 @@ fabryka                       # wypisuje listę komend: start, lekcja, mapa, spr
 git tag -l 'lekcja-*' | wc -l # 10
 ```
 
-Hala (2746), Jaeger (16686) i dashboard kagent (8082) otworzysz w zakładce **PORTS**, a z terminala:
+**5. Hala, Jaeger i kagent w przeglądarce** (po `fabryka start` z Kroku 2). Zakładka **Ports** obok
+Terminal (8). Najedź na wiersz **Hala (Argo Workflows)** i kliknij ikonę globu **Open in Browser** (9).
+Tak samo **Jaeger (ślady)** i **kagent dashboard**. Porty są prywatne: widzisz je tylko Ty.
+
+![Zakładka Ports i ikona Open in Browser](warsztat/grafiki/klik/5-porty.png)
+
+Z terminala na laptopie te same porty przekierujesz komendą
 `gh codespace ports forward 2746:2746 16686:16686 8082:8082 -c <nazwa>`.
 
 ### B. Laptop
