@@ -56,7 +56,8 @@ Dodatkowo:
 | `fabryka mapa` | które bloczki fabryki działają: od agenta w klastrze po poller GitHuba |
 | `fabryka sprawdz N` | czy ćwiczenie lekcji N jest zrobione; deterministycznie, bez modelu |
 | `fabryka rozwiazanie N` | wstawia rozwiązanie (pliki z lekcji N+1) i wdraża je do klastra |
-| `fabryka autopilot N` | prompt autopilota; w Claude Code po prostu `/fabryka-autopilot N` |
+| `fabryka autopilot N` | uruchamia Claude Code z promptem lekcji; w otwartym Claude Code: `/fabryka-autopilot N` |
+| `fabryka gotowe N` | gotowy wariant ćwiczenia w `rozwiazania/lekcja-NN/*-fN.*` (tworzy go też `fabryka lekcja N`) |
 | `fabryka reset` | klaster od zera, gdy stan jest nie do odratowania |
 
 Możesz zacząć od dowolnej lekcji. `fabryka lekcja 7` stawia repo na lekcji 7 z rozwiązaniami 1–6

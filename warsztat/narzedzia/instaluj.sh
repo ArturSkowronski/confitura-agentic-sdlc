@@ -11,6 +11,8 @@ mkdir -p "$bin" "$data/autopilot" "$HOME/.claude/commands"
 install -m 0755 "$src/fabryka" "$bin/fabryka"
 cp "$src"/autopilot/*.md "$data/autopilot/"
 cp "$src/claude-autopilot.md" "$HOME/.claude/commands/fabryka-autopilot.md"
+# Powitanie też poza repo: tagi lekcji są starsze niż .devcontainer, więc po fabryka lekcja N pliku w repo nie ma.
+[ -f "$src/../../.devcontainer/witaj.txt" ] && cp "$src/../../.devcontainer/witaj.txt" "$data/witaj.txt"
 case ":$PATH:" in
   *":$bin:"*) ;;
   *) for rc in "$HOME/.bashrc" "$HOME/.zshrc"; do

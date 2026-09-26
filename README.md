@@ -27,7 +27,7 @@ Bloki z komendami kopiujesz w całości do terminala w katalogu repo.
 
 Jak czytać każdą lekcję: `fabryka lekcja N` stawia repo i klaster w stanie lekcji N, `fabryka sprawdz N`
 jest najpierw czerwone, robisz ćwiczenie, `fabryka sprawdz N` jest zielone. Jeśli ćwiczenie nie wychodzi:
-w Claude Code `/fabryka-autopilot N` (robi je za Ciebie i tłumaczy), a w ostateczności `fabryka rozwiazanie N`.
+`fabryka autopilot N` (w terminalu uruchamia Claude Code, który robi ćwiczenie i tłumaczy; w samym Claude Code: `/fabryka-autopilot N`). Gotowy wariant każdego ćwiczenia leży po `fabryka lekcja N` w `rozwiazania/lekcja-NN/` (np. `agent-przyjecie-f1.yaml`), a `fabryka rozwiazanie N` wstawia go jedną komendą.
 Każdą lekcję możesz zacząć bez robienia poprzednich.
 
 ---
@@ -565,7 +565,7 @@ Na forku zostają issues i PR-y z finału. Jeśli dostałeś klucz do modelu na 
 | `make setup nie przeszedł` przy `fabryka lekcja` | Zwykle sieć przy budowie obrazów: powtórz `fabryka lekcja N` |
 | Przebieg wisi jako Pending | Limit WIP 3 i jeden dysk: `argo stop -n fabryka --all` |
 | Przebieg stoi na żółto | Czeka na człowieka: `argo list -n fabryka`, potem `make zatwierdz W=<nazwa>` |
-| `fabryka sprawdz` czerwone, nie wiesz czemu | `/fabryka-autopilot N` w Claude Code albo `fabryka rozwiazanie N` |
+| `fabryka sprawdz` czerwone, nie wiesz czemu | porównaj z `rozwiazania/lekcja-NN/*-fN.*`, uruchom `fabryka autopilot N` albo `fabryka rozwiazanie N` |
 | Zniknęły Twoje zmiany po `fabryka lekcja` | Są w `git stash list`; `git stash pop` |
 | `detected dubious ownership` | `git config --global --add safe.directory "$(pwd)"` |
 | Klaster w dziwnym stanie po skakaniu w tył | `fabryka reset` (około 10 minut) |

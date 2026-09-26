@@ -14,7 +14,7 @@ maszynie 4-rdzeniowej. Bez karty GitHub po prostu blokuje użycie po wyczerpaniu
 nie wystawia rachunku. Instrukcja: warsztat/start.md w repo.
 
 Nowość dla wszystkich: każdą lekcję możesz zacząć od zera (fabryka lekcja N), sprawdzić
-(fabryka sprawdz N), a gdy utkniesz, poprosić Claude o autopilota (/fabryka-autopilot N).
+(fabryka sprawdz N), a gdy utkniesz, uruchomić autopilota (fabryka autopilot N, startuje Claude Code) albo zajrzeć do gotowego wariantu w rozwiazania/lekcja-NN/.
 
 Do zobaczenia jutro o 10:15,
 Artur

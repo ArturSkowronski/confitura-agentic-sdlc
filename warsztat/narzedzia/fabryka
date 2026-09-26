@@ -9,8 +9,11 @@
 #   fabryka mapa                które bloczki fabryki działają w tym repo i klastrze
 #   fabryka sprawdz [N]         czy ćwiczenie lekcji N jest zrobione (deterministycznie, bez modelu)
 #   fabryka rozwiazanie N       wstaw rozwiązanie ćwiczenia N (pliki z lekcji N+1) i wdróż je do klastra
-#   fabryka autopilot N         prompt autopilota lekcji N dla Claude (w Claude Code: /fabryka-autopilot N)
+#   fabryka autopilot N         uruchom Claude Code z promptem lekcji N (--prompt: tylko wypisz prompt)
+#   fabryka gotowe [N]          gotowe pliki ćwiczenia N w rozwiazania/lekcja-NN/*-fN.* (tworzy je też fabryka lekcja)
 #   fabryka reset               klaster od zera (kind delete + start), gdy stan jest nie do odratowania
+#   fabryka adresy              klikalne linki do hali (Argo), Jaegera i kagent: w Codespaces i na laptopie
+#   fabryka witaj               powitanie i pierwsze kroki (działa na każdej lekcji)
 #   fabryka aktualizuj          pobierz najnowsze narzędzia z main
 # Bez pipefail: sprawdzenia to rury z grep -q, a grep kończy się na pierwszym trafieniu i pisarz dostaje SIGPIPE.
 set -u
@@ -106,7 +109,8 @@ cmd_start() {
   make -s klaster || { info "Klaster wstaje wolniej niż zwykle, próbuję jeszcze raz"; make -s klaster; } || umrzyj "make klaster nie przeszedł dwa razy. fabryka reset albo pokaż log prowadzącemu."
   sync
   make -s doctor || true
-  echo; info "Gotowe. Dalej: fabryka mapa, potem fabryka lekcja 1 (albo dowolny numer)."
+  cmd_adresy
+  info "Gotowe. Dalej: otwórz halę (link wyżej), fabryka mapa, potem fabryka lekcja 1 (albo dowolny numer)."
 }
 
 cmd_lekcja() {
@@ -128,8 +132,14 @@ cmd_lekcja() {
   local mat; mat=$(ls warsztat/ 2>/dev/null | grep -E "^lekcja-$(printf %02d "${n/final/11}")|^final" | head -1)
   info "Lekcja $n gotowa."
   echo "  materiał:    warsztat/${mat:-final-github.md}"
-  echo "  ćwiczenie:   fabryka autopilot $n  (albo w Claude Code: /fabryka-autopilot $n)"
+  echo "  ćwiczenie:   fabryka autopilot $n  (uruchamia Claude Code; w samym Claude Code: /fabryka-autopilot $n)"
   echo "  sprawdzenie: fabryka sprawdz $n"
+  local g; g=$(gotowe "$n")
+  if [ -n "$g" ]; then
+    echo "  gotowy wariant (wersja końcowa ćwiczenia, do podejrzenia albo skopiowania):"
+    echo "$g" | sed 's/^/    /'
+    case "$g" in *komendy-f*) ;; *) echo "    wstawienie jedną komendą: fabryka rozwiazanie $n" ;; esac
+  fi
 }
 
 cmd_reset() {
@@ -336,7 +346,86 @@ cmd_rozwiazanie() {
 cmd_autopilot() {
   local n; n=$(lekcja_nr "${1:-}"); local f="$DATA/autopilot/$( [ "$n" = final ] && echo final || printf %02d "$n").md"
   [ -f "$f" ] || umrzyj "Brak promptu $f. Uruchom: fabryka aktualizuj"
-  cat "$f"
+  # Wewnątrz Claude Code (komenda /fabryka-autopilot) albo w rurze: tylko prompt, Claude wykona go sam.
+  if [ "${2:-}" = "--prompt" ] || [ -n "${CLAUDECODE:-}" ] || [ ! -t 1 ]; then cat "$f"; return 0; fi
+  if ! command -v claude >/dev/null; then
+    echo "Autopilot uruchamia Claude Code, a w tym terminalu nie ma komendy claude."
+    echo "  Zainstaluj:  npm install -g @anthropic-ai/claude-code   (potem: claude, zaloguj się raz)"
+    echo "  Bez Claude:  fabryka rozwiazanie $n                        (wstawia gotowe rozwiązanie, bez modelu)"
+    echo "  Gotowy plik: rozwiazania/lekcja-$(printf %02d "${n/final/11}")/  (pojawia się po fabryka lekcja $n)"
+    echo "  Sam prompt:  fabryka autopilot $n --prompt"
+    return 1
+  fi
+  repo
+  # Te same uprawnienia co komenda /fabryka-autopilot: lista z jej nagłówka allowed-tools.
+  local narz; narz=$(sed -n 's/^allowed-tools: //p' "$HOME/.claude/commands/fabryka-autopilot.md" 2>/dev/null | sed 's/, /,/g')
+  info "Autopilot lekcji $n: uruchamiam Claude Code z promptem lekcji. Patrz, co robi; o zatwierdzenia pyta Ciebie."
+  if [ -n "$narz" ]; then exec claude --allowed-tools="$narz" -- "$(cat "$f")"; else exec claude -- "$(cat "$f")"; fi
+}
+
+# Gotowe warianty ćwiczenia: pliki z lekcji N+1 jako rozwiazania/lekcja-NN/<nazwa>-fN.<rozszerzenie>. Osobny katalog,
+# bo np. ArchitectureRulesTest-f6.java obok oryginału zepsułby build. Katalog jest w .git/info/exclude: nie trafia
+# do git status ani do stash, a przy następnej lekcji powstaje od nowa.
+gotowe() {
+  local n=$1 top; top=$(git rev-parse --show-toplevel)
+  rm -rf "$top/rozwiazania"
+  local ex; ex="$(git rev-parse --git-dir)/info/exclude"; mkdir -p "$(dirname "$ex")"
+  grep -qx '/rozwiazania/' "$ex" 2>/dev/null || echo '/rozwiazania/' >> "$ex"
+  local dir; dir="$top/rozwiazania/$( [ "$n" = final ] && echo final || printf 'lekcja-%02d' "$n")"
+  local pliki=""; [ "$n" = final ] || pliki=$(pliki_cwiczenia "$n")
+  if [ -z "$pliki" ]; then   # ćwiczenie z komend, bez plików: gotowy wariant to lista komend
+    mkdir -p "$dir"
+    case "$n" in
+      5) printf '%s\n' "# Lekcja 5: linia. Rozwiązanie to przebieg, nie plik." "make replay Z=rabat      # na końcu: Wynik: Succeeded" "make odbierz" "fabryka sprawdz 5" ;;
+      10) printf '%s\n' "# Lekcja 10: ślad i manipulacja księgą." "make replay Z=rabat      # próba 2 staje na człowieku; w drugim terminalu: make zatwierdz W=<przebieg>" "make odbierz" "make ksiega-verify F=.sdlc/out/rabat/proba-2/ledger.jsonl" "fabryka sprawdz 10" ;;
+      *) printf '%s\n' "# Finał: fabryka na Twoim forku (warsztat/final-github.md)." "make github" "make issue Z=rabat" "make ciagnij AGENT=replay" "gh pr list" "fabryka sprawdz final" ;;
+    esac > "$dir/komendy-$( [ "$n" = final ] && echo final || echo "f$n").txt"
+    echo "rozwiazania/$(basename "$dir")/komendy-$( [ "$n" = final ] && echo final || echo "f$n").txt"
+    return 0
+  fi
+  local nast; nast=$(tag_lekcji $((n + 1))); git rev-parse -q --verify "refs/tags/$nast" >/dev/null || return 0
+  mkdir -p "$dir"
+  local p b cel
+  for p in $pliki; do
+    b=$(basename "$p"); cel="${b%.*}-f$n.${b##*.}"
+    git show "$nast:$p" > "$dir/$cel" 2>/dev/null || { rm -f "$dir/$cel"; continue; }
+    printf '%s  →  %s\n' "$cel" "$p" >> "$dir/GDZIE.txt"
+    echo "rozwiazania/$(printf 'lekcja-%02d' "$n")/$cel"
+  done
+}
+
+cmd_gotowe() { repo; local n; n=$(lekcja_nr "${1:-}"); tagi; gotowe "$n" | sed 's/^/  /'; }
+
+# Adres portu klastra w przeglądarce. W Codespaces localhost działa tylko w terminalu codespace'a, więc podajemy
+# adres przekierowania GitHuba (https://<codespace>-<port>.app.github.dev); na laptopie zwykły localhost.
+url() {
+  if [ -n "${CODESPACE_NAME:-}" ]; then
+    echo "https://${CODESPACE_NAME}-$1.${GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN:-app.github.dev}$2"
+  else
+    echo "http://localhost:$1$2"
+  fi
+}
+
+cmd_adresy() {
+  echo
+  echo "  Twoje adresy (Cmd+klik albo Ctrl+klik otwiera w przeglądarce):"
+  echo
+  echo "  Hala (Argo Workflows): przebiegi linii";  echo "    $(url 2746 /workflows/fabryka)"
+  echo "  Hala: szablon linii";                     echo "    $(url 2746 /workflow-templates/fabryka)"
+  echo "  Jaeger: ślady (wybierz serwis, Find Traces)";                    echo "    $(url 16686 /search)"
+  echo "  kagent: agenci w klastrze";               echo "    $(url 8082 /)"
+  if [ -n "${CODESPACE_NAME:-}" ]; then
+    echo "  Edytor tego codespace'a";               echo "    https://${CODESPACE_NAME}.github.dev/"
+    echo
+    echo "  Porty są prywatne: otwieraj w przeglądarce zalogowanej na Twoje konto GitHub."
+  fi
+  klaster_jest || echo "  Klastra jeszcze nie ma, więc strony nie odpowiedzą: najpierw fabryka start."
+  echo
+}
+
+cmd_witaj() {
+  local w="$DATA/witaj.txt"
+  [ -f "$w" ] && cat "$w" || pomoc
 }
 
 cmd_aktualizuj() {
@@ -346,7 +435,7 @@ cmd_aktualizuj() {
   bash "$tmp/warsztat/narzedzia/instaluj.sh"; rm -rf "$tmp"
 }
 
-pomoc() { sed -n '2,15p' "$0" | sed 's/^# \{0,1\}//'; }
+pomoc() { sed -n '2,17p' "$0" | sed 's/^# \{0,1\}//'; }
 
 case "${1:-pomoc}" in
   start) cmd_start ;;
@@ -354,8 +443,11 @@ case "${1:-pomoc}" in
   mapa) cmd_mapa ;;
   sprawdz|sprawdź) cmd_sprawdz "${2:-}" ;;
   rozwiazanie|rozwiązanie) cmd_rozwiazanie "${2:-}" ;;
-  autopilot) cmd_autopilot "${2:-}" ;;
+  autopilot) cmd_autopilot "${2:-}" "${3:-}" ;;
+  gotowe) cmd_gotowe "${2:-}" ;;
   reset) cmd_reset ;;
+  adresy|linki) cmd_adresy ;;
+  witaj) cmd_witaj ;;
   aktualizuj) cmd_aktualizuj ;;
   sync) repo; sync ;;
   *) pomoc ;;

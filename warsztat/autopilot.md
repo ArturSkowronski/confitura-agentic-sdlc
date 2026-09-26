@@ -1,13 +1,15 @@
 # Autopilot: prompt na każdą lekcję
 
-Gdy ćwiczenie nie wychodzi albo chcesz zacząć od dowolnej lekcji: w Claude Code wpisz `/fabryka-autopilot N`.
-Poza Claude Code: `fabryka autopilot N` wypisuje ten sam prompt do wklejenia w dowolnego agenta z dostępem do terminala.
+Gdy ćwiczenie nie wychodzi albo chcesz zacząć od dowolnej lekcji: w terminalu `fabryka autopilot N` uruchamia Claude Code
+z promptem lekcji i tymi samymi uprawnieniami. W otwartym już Claude Code: `/fabryka-autopilot N`.
+`fabryka autopilot N --prompt` tylko wypisuje prompt, do wklejenia w dowolnego agenta z dostępem do terminala.
+Bez modelu: gotowy wariant ćwiczenia w `rozwiazania/lekcja-NN/` (tworzy go `fabryka lekcja N`) albo `fabryka rozwiazanie N`.
 Autopilot sam przestawia repo i klaster na lekcję, robi ćwiczenie, sprawdza je `fabryka sprawdz N`, a w razie porażki
 wstawia rozwiązanie. Na koniec mówi, który bloczek fabryki się zapalił.
 
 ## Lekcja 01 · Klaster i pierwszy agent
 
-`/fabryka-autopilot 1` albo `fabryka autopilot 1`
+`fabryka autopilot 1` (w Claude Code: `/fabryka-autopilot 1`)
 
 ```text
 Jesteś autopilotem lekcji 01 warsztatu „Fabryka oprogramowania od podstaw” (Klaster i pierwszy agent).
@@ -50,7 +52,7 @@ Krok 5. Raport po polsku, najwyżej 8 punktów:
 
 ## Lekcja 02 · Warsztat i narzędzia
 
-`/fabryka-autopilot 2` albo `fabryka autopilot 2`
+`fabryka autopilot 2` (w Claude Code: `/fabryka-autopilot 2`)
 
 ```text
 Jesteś autopilotem lekcji 02 warsztatu „Fabryka oprogramowania od podstaw” (Warsztat i narzędzia).
@@ -93,7 +95,7 @@ Krok 5. Raport po polsku, najwyżej 8 punktów:
 
 ## Lekcja 03 · Kontekst L1–L5
 
-`/fabryka-autopilot 3` albo `fabryka autopilot 3`
+`fabryka autopilot 3` (w Claude Code: `/fabryka-autopilot 3`)
 
 ```text
 Jesteś autopilotem lekcji 03 warsztatu „Fabryka oprogramowania od podstaw” (Kontekst L1–L5).
@@ -133,7 +135,7 @@ Krok 5. Raport po polsku, najwyżej 8 punktów:
 
 ## Lekcja 04 · Przyjęcie zlecenia
 
-`/fabryka-autopilot 4` albo `fabryka autopilot 4`
+`fabryka autopilot 4` (w Claude Code: `/fabryka-autopilot 4`)
 
 ```text
 Jesteś autopilotem lekcji 04 warsztatu „Fabryka oprogramowania od podstaw” (Przyjęcie zlecenia).
@@ -172,7 +174,7 @@ Krok 5. Raport po polsku, najwyżej 8 punktów:
 
 ## Lekcja 05 · Linia
 
-`/fabryka-autopilot 5` albo `fabryka autopilot 5`
+`fabryka autopilot 5` (w Claude Code: `/fabryka-autopilot 5`)
 
 ```text
 Jesteś autopilotem lekcji 05 warsztatu „Fabryka oprogramowania od podstaw” (Linia).
@@ -211,7 +213,7 @@ Krok 5. Raport po polsku, najwyżej 8 punktów:
 
 ## Lekcja 06 · Kontrola jakości
 
-`/fabryka-autopilot 6` albo `fabryka autopilot 6`
+`fabryka autopilot 6` (w Claude Code: `/fabryka-autopilot 6`)
 
 ```text
 Jesteś autopilotem lekcji 06 warsztatu „Fabryka oprogramowania od podstaw” (Kontrola jakości).
@@ -251,7 +253,7 @@ Krok 5. Raport po polsku, najwyżej 8 punktów:
 
 ## Lekcja 07 · Wyrocznia
 
-`/fabryka-autopilot 7` albo `fabryka autopilot 7`
+`fabryka autopilot 7` (w Claude Code: `/fabryka-autopilot 7`)
 
 ```text
 Jesteś autopilotem lekcji 07 warsztatu „Fabryka oprogramowania od podstaw” (Wyrocznia).
@@ -292,7 +294,7 @@ Krok 5. Raport po polsku, najwyżej 8 punktów:
 
 ## Lekcja 08 · Ryzyko, review i poprawki
 
-`/fabryka-autopilot 8` albo `fabryka autopilot 8`
+`fabryka autopilot 8` (w Claude Code: `/fabryka-autopilot 8`)
 
 ```text
 Jesteś autopilotem lekcji 08 warsztatu „Fabryka oprogramowania od podstaw” (Ryzyko, review i poprawki).
@@ -334,7 +336,7 @@ Krok 5. Raport po polsku, najwyżej 8 punktów:
 
 ## Lekcja 09 · Światło, WIP i polityka
 
-`/fabryka-autopilot 9` albo `fabryka autopilot 9`
+`fabryka autopilot 9` (w Claude Code: `/fabryka-autopilot 9`)
 
 ```text
 Jesteś autopilotem lekcji 09 warsztatu „Fabryka oprogramowania od podstaw” (Światło, WIP i polityka).
@@ -388,7 +390,7 @@ Krok 5. Raport po polsku, najwyżej 8 punktów:
 
 ## Lekcja 10 · Ślad i hala
 
-`/fabryka-autopilot 10` albo `fabryka autopilot 10`
+`fabryka autopilot 10` (w Claude Code: `/fabryka-autopilot 10`)
 
 ```text
 Jesteś autopilotem lekcji 10 warsztatu „Fabryka oprogramowania od podstaw” (Ślad i hala).
@@ -429,7 +431,7 @@ Krok 5. Raport po polsku, najwyżej 8 punktów:
 
 ## Finał · Finał: fabryka na GitHubie
 
-`/fabryka-autopilot final` albo `fabryka autopilot final`
+`fabryka autopilot final` (w Claude Code: `/fabryka-autopilot final`)
 
 ```text
 Jesteś autopilotem lekcji finałowej warsztatu „Fabryka oprogramowania od podstaw” (Finał: fabryka na GitHubie).

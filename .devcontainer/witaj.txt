@@ -5,8 +5,9 @@
   2. fabryka lekcja 1       albo dowolny numer: repo i klaster w stanie tej lekcji
   3. fabryka mapa           które bloczki fabryki już działają
   4. fabryka sprawdz 1      czy ćwiczenie jest zrobione
+  5. fabryka adresy         linki do hali (Argo), Jaegera i kagent do kliknięcia
 
-  Utknąłeś? W Claude Code: /fabryka-autopilot 1 (albo: fabryka rozwiazanie 1).
-  Hala: port 2746, Jaeger: 16686, kagent: 8082 (zakładka PORTS).
-  Więcej: warsztat/start.md
+  Utknąłeś? fabryka autopilot 1 uruchamia Claude Code z gotowym promptem.
+  Gotowy wariant ćwiczenia: rozwiazania/lekcja-01/ (wstawia go: fabryka rozwiazanie 1).
+  To powitanie wróci po: fabryka witaj. Wszystko krok po kroku: README.md na main.
 

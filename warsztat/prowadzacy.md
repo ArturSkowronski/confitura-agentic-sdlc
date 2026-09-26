@@ -117,7 +117,7 @@ Narzędzie `fabryka` jest instalowane poza repo, więc skakanie po tagach go nie
 |---|---|
 | ktoś się spóźnił albo zgubił | `fabryka lekcja N`: repo i klaster w stanie lekcji N, zmiany w stash |
 | nie wiadomo, czy ćwiczenie jest zrobione | `fabryka sprawdz N`: deterministycznie, bez modelu |
-| ćwiczenie nie wychodzi | `/fabryka-autopilot N` w Claude Code, a w ostateczności `fabryka rozwiazanie N` |
+| ćwiczenie nie wychodzi | `fabryka autopilot N` (startuje Claude Code), gotowy wariant w `rozwiazania/lekcja-NN/`, w ostateczności `fabryka rozwiazanie N` |
 | nikt nie rozumie, co już zbudowaliśmy | `fabryka mapa` na projektorze: bloczki fabryki zapalają się lekcja po lekcji |
 | klaster w dziwnym stanie | `fabryka reset` (10 minut, więc raczej przerwa) |
 
