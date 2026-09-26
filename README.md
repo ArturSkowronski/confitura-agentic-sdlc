@@ -152,11 +152,17 @@ Jeśli tagów jest 0, `fabryka lekcja 1` sam je pobierze z repo prowadzącego.
 ### Klucz do modelu (opcjonalny)
 
 Bez klucza wszystko działa w trybie replay: zamiast agenta linia nakłada nagraną zmianę. Z kluczem
-(dostajesz go na sali albo używasz własnego, np. OpenRouter) agenci naprawdę odpowiadają:
+(dostajesz go na sali albo używasz własnego) agenci naprawdę odpowiadają:
 
 ```bash
-make klucz                   # pyta o LLM_API_KEY; model i adres w scripts/workshop.env
+make klucz                   # pyta o klucz: wklej i Enter (nie widać go na ekranie)
 ```
+
+Klucz wklejasz **po pytaniu**, nie jako argument (`make klucz sk-ant-…` make weźmie za nazwę celu, a klucz
+zostanie w historii powłoki). Rodzaj klucza sam wybiera API: `sk-ant-…` to Claude API (Anthropic,
+model `claude-sonnet-5`), `sk-or-…` to OpenRouter. Inny model: `LLM_MODEL=claude-opus-5-5 make klucz`.
+Przed zapisaniem `make klucz` wysyła jedno krótkie zapytanie i mówi, czy klucz działa (401: zły klucz,
+429: brak kredytu).
 
 Kroki oznaczone **(z kluczem)** bez klucza pomijasz. `fabryka sprawdz` nigdy nie wymaga modelu.
 

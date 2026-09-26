@@ -53,12 +53,8 @@ doctor: ## Sprawdź, czy wszystko działa (lokalnie i w klastrze)
 lekcja: ## Przeskocz do lekcji: make lekcja N=4
 	@scripts/lekcja.sh $(N)
 
-klucz: ## Ustaw klucz do modelu (Secret fabryka-llm) i zrestartuj agentów
-	@. scripts/workshop.env; read -rsp "LLM_API_KEY: " k; echo; \
-	kubectl create secret generic fabryka-llm -n fabryka --from-literal=LLM_API_KEY="$$k" --dry-run=client -o yaml | kubectl apply -f - >/dev/null; \
-	LLM_MODEL="$$LLM_MODEL" LLM_BASE_URL="$$LLM_BASE_URL" envsubst < platforma/kagent/modelconfig.yaml | kubectl apply -f - >/dev/null; \
-	kubectl rollout restart deploy -n fabryka -l app=kagent >/dev/null 2>&1 || true; \
-	echo "Model: $$LLM_MODEL przez $$LLM_BASE_URL"
+klucz: ## Klucz do modelu (sk-ant-… Claude API, sk-or-… OpenRouter): make klucz, klucz wklejasz po pytaniu
+	@bash scripts/klucz.sh
 
 a2a: ## Zapytaj agenta przez A2A: make a2a A=probny T="Przedstaw się"
 	@python3 sdlc/a2a.py --agent "$(A)" --task "$(T)"
