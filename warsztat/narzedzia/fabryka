@@ -66,7 +66,7 @@ sync() {
     info "Klaster: make setup (obrazy, warsztat, agenci, linia; kilka minut przy pierwszym razie)"
     make -s setup || umrzyj "make setup nie przeszedł. Pokaż ten log prowadzącemu albo spróbuj: fabryka reset"
   else
-    info "Lekcja 1: klaster z agentem probny, bez warsztatu"
+    info "Lekcja 1: w klastrze jest tylko agent „probny” (bez narzędzi). Serwer narzędzi MCP „warsztat” i agent wykonawca dojdą w lekcji 2."
   fi
   if ma_target linia; then make -s linia >/dev/null || true; fi
   # Konfiguracja kontrolera Argo (lekcja 5) i ślad przebiegów (lekcja 10) żyją w klaster.sh, którego sync nie woła:
