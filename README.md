@@ -80,17 +80,33 @@ prawym dolnym rogu możesz odrzucić (**Deny**).
 
 ![Zakładka Terminal i wiersz poleceń](warsztat/grafiki/klik/4-terminal.png)
 
-**Logowanie Claude Code w Codespaces (raz).** Po zalogowaniu claude.ai przekierowuje przeglądarkę na
-`http://localhost:…/callback`, a to `localhost` jest na Twoim laptopie, nie w codespace. Dlatego:
+**Claude Code na laptopie, klaster w codespace (polecane).** Claude loguje się u Ciebie normalnie, a komendy
+fabryki biegną w codespace. Potrzebujesz na laptopie: `git`, `gh`, `ssh`, `rsync` (macOS i Linux mają je z
+systemu; Windows: WSL) i Claude Code.
+
+```bash
+gh auth refresh -h github.com -s codespace          # raz: gh może łączyć się z Twoimi codespace'ami
+gh repo clone <login>/confitura-agentic-sdlc && cd confitura-agentic-sdlc
+bash warsztat/narzedzia/instaluj.sh                 # fabryka i /fabryka-autopilot na laptopie
+fabryka polacz                                      # łączy ten katalog z Twoim codespace'em; sam go znajdzie
+fabryka mapa                                        # biegnie w codespace, wynik widzisz tutaj
+claude                                              # Claude Code w tym katalogu (albo: fabryka autopilot 1)
+```
+
+Po `fabryka polacz` katalog na laptopie jest kopią repo z codespace'a, razem z `.git`, więc lekcje i tagi się
+zgadzają. Każde `fabryka …` wysyła Twoje zmiany do codespace'a, wykonuje się tam i odbiera wynik (rsync w obie
+strony). Dowolną inną komendę puszczasz przez `fabryka cs`: `fabryka cs make replay Z=rabat`,
+`fabryka cs kubectl get agent -n fabryka`. Claude edytuje pliki lokalnie; autopilot mówi mu, żeby komendy
+klastra puszczał przez `fabryka cs`. Koniec pracy: `fabryka rozlacz` (codespace działa dalej).
+
+**Claude Code w samym codespace (gdy nie masz go na laptopie).** Po zalogowaniu claude.ai przekierowuje
+przeglądarkę na `http://localhost:…/callback`, a to `localhost` jest na Twoim laptopie, nie w codespace. Dlatego:
 
 1. W terminalu codespace'a: `fabryka zaloguj`. Otwórz wypisany link i zaloguj się.
 2. Przeglądarka skończy na stronie „localhost odmówił połączenia”. Skopiuj **cały** adres z paska
    (`http://localhost:…/callback?code=…`).
 3. Otwórz drugi terminal (**+** w panelu Terminal) i wpisz `fabryka callback '<wklejony adres>'`.
-   Pierwszy terminal pokaże, że jesteś zalogowany.
 
-Bez przeglądarki: na laptopie `claude setup-token`, a token dodaj jako sekret Codespaces
-`CLAUDE_CODE_OAUTH_TOKEN` (github.com/settings/codespaces → **New secret**, dostęp do Twojego forka).
 Claude nie jest potrzebny, żeby przejść warsztat: `fabryka rozwiaz N` rozwiązuje lekcję bez modelu.
 
 Albo to samo z terminala na laptopie (potrzebny tylko `gh`):
@@ -612,6 +628,8 @@ Na forku zostają issues i PR-y z finału. Jeśli dostałeś klucz do modelu na 
 | Przebieg stoi na żółto | Czeka na człowieka: `argo list -n fabryka`, potem `make zatwierdz W=<nazwa>` |
 | `fabryka sprawdz` czerwone, nie wiesz czemu | porównaj z `rozwiazania/lekcja-NN/*-fN.*`, uruchom `fabryka autopilot N` albo `fabryka rozwiaz N` (bez modelu, wypisuje każdy krok) |
 | `make github`: HTTP 403 „Resource not accessible by integration” | w Codespaces: `env -u GITHUB_TOKEN gh auth login -h github.com -s repo,workflow`, potem `make github` |
+| `fabryka polacz`: „Nie widzę codespace'a” | `gh auth refresh -h github.com -s codespace`, sprawdź `gh codespace list`; albo `fabryka polacz <nazwa>` |
+| `fabryka …` z laptopa: „Nie mogę wysłać zmian do codespace'a” | codespace zasnął: `gh codespace ssh -c <nazwa> -- true` go budzi, potem jeszcze raz |
 | Claude Code w Codespaces: po zalogowaniu „localhost odmówił połączenia” | skopiuj adres z paska i w drugim terminalu `fabryka callback '<adres>'` (sekcja Krok 1A) |
 | Zniknęły Twoje zmiany po `fabryka lekcja` | Są w `git stash list`; `git stash pop` |
 | `detected dubious ownership` | `git config --global --add safe.directory "$(pwd)"` |

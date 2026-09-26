@@ -7,8 +7,8 @@
   4. fabryka sprawdz 1      czy ćwiczenie jest zrobione
   5. fabryka adresy         linki do hali (Argo), Jaegera i kagent do kliknięcia
 
-  Utknąłeś? fabryka autopilot 1 uruchamia Claude Code z gotowym promptem
-  (pierwszy raz: fabryka zaloguj). Bez modelu: fabryka rozwiaz 1 wstawia rozwiązanie
-  i wypisuje każdy krok. Gotowe pliki do podejrzenia: rozwiazania/lekcja-01/.
+  Claude Code najlepiej na laptopie: klon forka, potem fabryka polacz (README, Krok 1A).
+  Bez modelu: fabryka rozwiaz 1 wstawia rozwiązanie i wypisuje każdy krok.
+  Gotowe pliki do podejrzenia: rozwiazania/lekcja-01/.
   To powitanie wróci po: fabryka witaj. Wszystko krok po kroku: README.md na main.
 

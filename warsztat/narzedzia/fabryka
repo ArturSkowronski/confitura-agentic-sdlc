@@ -12,6 +12,7 @@
 #   fabryka gotowe [N]          gotowe pliki ćwiczenia N w rozwiazania/lekcja-NN/*-fN.* (tworzy je też fabryka lekcja)
 #   fabryka rozwiaz N           (solve) podmień pliki na końcowe, wdróż, wypisz każdy krok, sprawdź; bez modelu
 #   fabryka zaloguj             logowanie Claude Code (w Codespaces z fabryka callback '<adres z przeglądarki>')
+#   fabryka polacz [nazwa]      na laptopie: połącz klon forka z codespace'em; potem fabryka … i fabryka cs <komenda> biegną tam
 #   fabryka reset               klaster od zera (kind delete + start), gdy stan jest nie do odratowania
 #   fabryka adresy              klikalne linki do hali (Argo), Jaegera i kagent: w Codespaces i na laptopie
 #   fabryka witaj               powitanie i pierwsze kroki (działa na każdej lekcji)
@@ -39,6 +40,55 @@ repo() {
   [ -d "$top/system" ] || umrzyj "To nie wygląda na repo warsztatu: brak katalogu system/."
   cd "$top"
 }
+
+# ------------------------------------------------------------------ Claude na laptopie, klaster w Codespace
+# fabryka polacz łączy klon forka na laptopie z codespace'em. Potem każde `fabryka …` i `fabryka cs <komenda>`
+# biegnie w codespace: rsync wysyła lokalne zmiany, komenda się wykonuje, rsync odbiera wynik. Laptop zostaje
+# dokładną kopią (razem z .git, więc lekcje i tagi się zgadzają), a Claude Code pracuje lokalnie na plikach.
+CS_WYKLUCZ=(--exclude 'target/' --exclude '/platforma/linia/cosign/cosign.key' --exclude '/.git/fabryka-codespace' --exclude '.DS_Store')
+cs_plik() { local t; t=$(git rev-parse --show-toplevel 2>/dev/null) && echo "$t/.git/fabryka-codespace"; }
+cs_aktywny() { [ -z "${CODESPACES:-}" ] && [ -f "$(cs_plik 2>/dev/null)" ]; }
+cs_rsync() { rsync -az --delete "${CS_WYKLUCZ[@]}" -e "ssh -F $CS_SSH -o LogLevel=ERROR" "$@"; }
+cs_uruchom() {   # $1: komenda (tekst) do wykonania w repo codespace'a
+  repo; . "$(cs_plik)"
+  printf '\033[2m→ codespace %s: %s\033[0m\n' "$CS_NAZWA" "$1" >&2
+  cs_rsync ./ "$CS_HOST:$CS_DIR/" || umrzyj "Nie mogę wysłać zmian do codespace'a. Zatrzymany? Uruchom go (gh codespace ssh -c $CS_NAZWA) albo: fabryka polacz"
+  local tty=""; [ -t 0 ] && [ -t 1 ] && tty="-tt"
+  ssh -F "$CS_SSH" -o LogLevel=ERROR $tty "$CS_HOST" "cd '$CS_DIR' && export PATH=\$HOME/.local/bin:\$PATH && $1"; local rc=$?
+  cs_rsync "$CS_HOST:$CS_DIR/" ./ || echo "Uwaga: nie odebrałem plików z codespace'a" >&2
+  return $rc
+}
+
+cmd_polacz() {
+  repo
+  [ -z "${CODESPACES:-}" ] || umrzyj "Jesteś w codespace. fabryka polacz uruchamiasz na laptopie, w klonie swojego forka."
+  local t; for t in gh rsync ssh; do command -v "$t" >/dev/null || umrzyj "Brak $t na laptopie."; done
+  local nazwa="${1:-}" gh_repo
+  gh_repo=$(git remote get-url origin 2>/dev/null | sed -nE 's#^(https://github\.com/|git@github\.com:)([^/]+/[^/.]+)(\.git)?$#\2#p')
+  if [ -z "$nazwa" ]; then
+    nazwa=$(gh codespace list -R "$gh_repo" --json name -q '.[0].name' 2>/dev/null)
+    [ -n "$nazwa" ] || umrzyj "Nie widzę codespace'a dla $gh_repo. Brak zakresu codespace? gh auth refresh -h github.com -s codespace. Albo podaj nazwę: fabryka polacz <nazwa> (lista: gh codespace list)."
+  fi
+  info "Łączę ten katalog z codespace'em $nazwa (jeśli śpi, obudzi się, około minuty)"
+  local cfg="$HOME/.ssh/fabryka-$nazwa.conf"; mkdir -p "$HOME/.ssh"
+  gh codespace ssh --config -c "$nazwa" > "$cfg" 2>/dev/null && grep -q '^Host ' "$cfg" || umrzyj "gh codespace ssh --config nie przeszedł. Sprawdź: gh codespace list, gh auth status (zakres codespace)."
+  local host; host=$(awk '/^Host /{print $2; exit}' "$cfg")
+  local dir; dir=$(ssh -F "$cfg" -o LogLevel=ERROR "$host" 'for d in /workspaces/*/; do [ -d "$d/system" ] && { echo "${d%/}"; break; }; done')
+  [ -n "$dir" ] || umrzyj "Nie znalazłem repo warsztatu w /workspaces codespace'a."
+  ssh -F "$cfg" -o LogLevel=ERROR "$host" 'command -v rsync >/dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq rsync; } >/dev/null' || umrzyj "Nie mogę doinstalować rsync w codespace."
+  if [ -n "$(git status --porcelain)" ]; then
+    git stash push -q -u -m "fabryka: przed połączeniem z codespace'em" && echo "  Twoje lokalne zmiany są w git stash (git stash list)."
+  fi
+  printf 'CS_NAZWA=%q\nCS_HOST=%q\nCS_DIR=%q\nCS_SSH=%q\n' "$nazwa" "$host" "$dir" "$cfg" > "$(git rev-parse --git-dir)/fabryka-codespace"
+  CS_SSH=$cfg; cs_rsync "$host:$dir/" ./ || umrzyj "Nie udało się pobrać repo z codespace'a."
+  info "Połączone. Ten katalog jest kopią $dir z codespace'a $nazwa."
+  echo "  fabryka …               biegnie w codespace (sync przed i po)"
+  echo "  fabryka cs <komenda>    dowolna komenda w codespace: make, kubectl, argo"
+  echo "  claude                  Claude Code tutaj, na laptopie; fabryka autopilot N robi to samo z promptem lekcji"
+  echo "  fabryka rozlacz         koniec: ten katalog znów działa sam"
+}
+
+cmd_rozlacz() { repo; rm -f "$(git rev-parse --git-dir)/fabryka-codespace"; info "Rozłączone. Codespace działa dalej; zatrzymasz go: gh codespace stop"; }
 lekcja_nr() {
   case "${1:-}" in
     final|finał|11) echo final ;;
@@ -418,7 +468,13 @@ cmd_autopilot() {
   local n; n=$(lekcja_nr "${1:-}"); local f="$DATA/autopilot/$( [ "$n" = final ] && echo final || printf %02d "$n").md"
   [ -f "$f" ] || umrzyj "Brak promptu $f. Uruchom: fabryka aktualizuj"
   # Wewnątrz Claude Code (komenda /fabryka-autopilot) albo w rurze: tylko prompt, Claude wykona go sam.
-  if [ "${2:-}" = "--prompt" ] || [ -n "${CLAUDECODE:-}" ] || [ ! -t 1 ]; then cat "$f"; return 0; fi
+  local prompt; prompt=$(cat "$f")
+  if cs_aktywny; then
+    prompt="Ten katalog jest kopią repo z codespace'a, w którym działa klaster. Komendy fabryka uruchamiaj normalnie (same idą do codespace'a). make, kubectl, argo i python3 sdlc/… uruchamiaj przez: fabryka cs <komenda>. Pliki edytuj tutaj, lokalnie.
+
+$prompt"
+  fi
+  if [ "${2:-}" = "--prompt" ] || [ -n "${CLAUDECODE:-}" ] || [ ! -t 1 ]; then printf '%s\n' "$prompt"; return 0; fi
   if ! command -v claude >/dev/null || ! claude --version >/dev/null 2>&1; then
     echo "Autopilot uruchamia Claude Code, a w tym terminalu nie ma komendy claude."
     echo "  Zainstaluj:  curl -fsSL https://claude.ai/install.sh | bash   (potem: fabryka zaloguj)"
@@ -436,7 +492,7 @@ cmd_autopilot() {
   # Te same uprawnienia co komenda /fabryka-autopilot: lista z jej nagłówka allowed-tools.
   local narz; narz=$(sed -n 's/^allowed-tools: //p' "$HOME/.claude/commands/fabryka-autopilot.md" 2>/dev/null | sed 's/, /,/g')
   info "Autopilot lekcji $n: uruchamiam Claude Code z promptem lekcji. Patrz, co robi; o zatwierdzenia pyta Ciebie."
-  if [ -n "$narz" ]; then exec claude --allowed-tools="$narz" -- "$(cat "$f")"; else exec claude -- "$(cat "$f")"; fi
+  if [ -n "$narz" ]; then exec claude --allowed-tools="$narz" -- "$prompt"; else exec claude -- "$prompt"; fi
 }
 
 # Gotowe warianty ćwiczenia: pliki z lekcji N+1 jako rozwiazania/lekcja-NN/<nazwa>-fN.<rozszerzenie>. Osobny katalog,
@@ -511,9 +567,21 @@ cmd_aktualizuj() {
   bash "$tmp/warsztat/narzedzia/instaluj.sh"; rm -rf "$tmp"
 }
 
-pomoc() { sed -n '2,18p' "$0" | sed 's/^# \{0,1\}//'; }
+pomoc() { sed -n '2,19p' "$0" | sed 's/^# \{0,1\}//'; }
+
+# Tryb codespace (laptop po fabryka polacz): komendy fabryki biegną tam, gdzie jest klaster.
+if cs_aktywny; then
+  case "${1:-pomoc}" in
+    polacz|połącz|rozlacz|rozłącz|autopilot|zaloguj|login|callback|witaj|aktualizuj|pomoc|help|-h) ;;
+    cs) shift; [ $# -gt 0 ] || umrzyj "Podaj komendę: fabryka cs make replay Z=rabat"; cs_uruchom "$*"; exit $? ;;
+    *) cs_uruchom "fabryka $(printf '%q ' "$@")"; exit $? ;;
+  esac
+fi
 
 case "${1:-pomoc}" in
+  polacz|połącz) cmd_polacz "${2:-}" ;;
+  rozlacz|rozłącz) cmd_rozlacz ;;
+  cs) umrzyj "fabryka cs działa po połączeniu z codespace'em: fabryka polacz" ;;
   start) cmd_start ;;
   lekcja) cmd_lekcja "${2:-}" ;;
   mapa) cmd_mapa ;;
