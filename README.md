@@ -525,15 +525,41 @@ Issue na Twoim forku to zlecenie, PR to wynik, a GitHub Actions sprawdzają poch
 ```bash
 fabryka lekcja final         # repo na main forka, klaster w stanie finału
 git remote -v                # origin = Twój fork, nie ArturSkowronski/…
-gh auth status               # Logged in, zakresy repo i workflow
-# tylko w Codespaces, raz: własne logowanie gh (token codespace'a nie zmienia ustawień repo, make github dostałby 403)
-env -u GITHUB_TOKEN gh auth login -h github.com -s repo,workflow
-make github                  # fork: issues, Actions, auto-merge, etykiety, ochrona main, klucz cosign; Secret i poller w klastrze
+gh auth status               # na laptopie: Logged in, zakresy repo i workflow
 ```
 
-W Codespaces `gh` domyślnie używa tokenu codespace'a (`GITHUB_TOKEN`). Wypycha kod i zakłada issues, ale ustawień
-repo nie zmieni: bez własnego logowania `make github` kończy się `HTTP 403 Resource not accessible by integration`.
-`make github` sam bierze Twoje logowanie i podpowiada komendę, jeśli go nie ma.
+**W Codespaces najpierw zaloguj `gh` swoim kontem (raz na codespace, przed `make github`).** Codespace ma własny
+token (`GITHUB_TOKEN`, zaczyna się od `ghu_`). Wypycha kod i zakłada issues, ale ustawień repo nie zmieni: z nim
+`make github` kończy się `HTTP 403 Resource not accessible by integration`.
+
+```bash
+git pull                                                          # najnowsze skrypty z main
+env -u GITHUB_TOKEN gh auth login -h github.com -s repo,workflow  # env -u + NAZWA zmiennej, nie wartość tokenu
+```
+
+Odpowiedzi na pytania `gh`:
+
+| Pytanie | Odpowiedź |
+|---|---|
+| What is your preferred protocol for Git operations? | **HTTPS** |
+| Authenticate Git with your GitHub credentials? | **Yes** |
+| How would you like to authenticate GitHub CLI? | **Login with a web browser** |
+| First copy your one-time code: `XXXX-XXXX` | Enter, w przeglądarce github.com/login/device: wklej kod, **Continue**, **Authorize github** |
+
+Sprawdzenie przed `make github`:
+
+```bash
+env -u GITHUB_TOKEN gh auth status   # musi być: account <login> (/home/vscode/.config/gh/hosts.yml), Token: gho_…
+```
+
+Jeśli widzisz `(GITHUB_TOKEN)` i `Token: ghu_…`, logowanie się nie udało: powtórz `gh auth login` powyżej.
+Logowanie przetrwa zatrzymanie codespace'a. Na laptopie ten krok odpada: wystarczy zwykłe `gh auth login`.
+
+Teraz podłączenie forka:
+
+```bash
+make github                  # fork: issues, Actions, auto-merge, etykiety, ochrona main, klucz cosign; Secret i poller w klastrze
+```
 
 `make github` wypisuje, co ustawił. Jeśli Actions nie dały się włączyć: w forku zakładka **Actions →
 I understand my workflows, go ahead and enable them**.

@@ -205,7 +205,9 @@ Lekcja 10.
 ```text
 Finał. Podłącz fabrykę do mojego forka.
 0. git remote -v: origin ma być moim forkiem, nie ArturSkowronski/…
-   Jeśli nie jest, zatrzymaj się.
+   Jeśli nie jest, zatrzymaj się. W Codespaces:
+   env -u GITHUB_TOKEN gh auth status. Jeśli token to ghu_…,
+   zatrzymaj się i poproś mnie o gh auth login (robię to sam).
 1. make github. Jeśli Actions nie dały się włączyć, powiedz mi,
    co kliknąć w zakładce Actions forka.
 2. make issue Z=rabat, potem make ciagnij AGENT=replay
