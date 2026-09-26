@@ -11,7 +11,7 @@ curl -fsSL -o "$tmp/kind" "https://kind.sigs.k8s.io/dl/$KIND_VERSION/kind-linux-
 curl -fsSL "https://github.com/argoproj/argo-workflows/releases/download/$ARGO_VERSION/argo-linux-$arch.gz" | gunzip > "$tmp/argo"
 curl -fsSL -o "$tmp/cosign" "https://github.com/sigstore/cosign/releases/download/$COSIGN_VERSION/cosign-linux-$arch"
 sudo install -m 0755 "$tmp/kind" "$tmp/argo" "$tmp/cosign" /usr/local/bin/
-sudo apt-get update -qq && sudo apt-get install -y -qq jq gettext-base >/dev/null
+sudo apt-get update -qq && sudo apt-get install -y -qq jq gettext-base python3 >/dev/null   # python3: fabryka i sdlc/ (tylko biblioteka standardowa)
 rm -rf "$tmp"
 git config --global --add safe.directory '*'   # workspace montowany z innym właścicielem
 bash warsztat/narzedzia/instaluj.sh

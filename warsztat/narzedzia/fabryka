@@ -139,7 +139,7 @@ cmd_lekcja() {
   if [ -n "$g" ]; then
     echo "  gotowy wariant (wersja końcowa ćwiczenia, do podejrzenia albo skopiowania):"
     echo "$g" | sed 's/^/    /'
-    case "$g" in *komendy-f*) ;; *) echo "    wstawienie jedną komendą: fabryka rozwiazanie $n" ;; esac
+    case "$g" in *komendy-f*) ;; *) echo "    wstawienie jedną komendą: fabryka rozwiaz $n (wypisuje każdy krok)" ;; esac
   fi
 }
 
