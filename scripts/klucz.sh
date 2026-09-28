@@ -25,7 +25,7 @@ echo "Klucz ${k:0:10}… → $rodzaj, $LLM_BASE_URL, model $LLM_MODEL"
 
 # Jedno krótkie zapytanie, zanim klucz trafi do klastra: zły klucz albo model widać tu, a nie w logach agenta.
 if [ "${KLUCZ_BEZ_TESTU:-0}" != 1 ]; then
-  LLM_API_KEY="$k" LLM_BASE_URL="$LLM_BASE_URL" LLM_MODEL="$LLM_MODEL" python3 - <<'PY' || { echo "Klucz nie zapisany. Wymuszenie bez testu: KLUCZ_BEZ_TESTU=1 make klucz"; exit 1; }
+  LLM_API_KEY="$k" LLM_BASE_URL="$LLM_BASE_URL" LLM_MODEL="$LLM_MODEL" python3 - <<'PY' || { echo "Klucz nie zapisany. Wymuszenie bez testu: KLUCZ_BEZ_TESTU=1 fabryka klucz"; exit 1; }
 import json, os, sys, urllib.request, urllib.error
 req = urllib.request.Request(os.environ["LLM_BASE_URL"].rstrip("/") + "/chat/completions",
     data=json.dumps({"model": os.environ["LLM_MODEL"], "max_tokens": 5,
