@@ -154,14 +154,16 @@ Jeśli tagów jest 0, `fabryka lekcja 1` sam je pobierze z repo prowadzącego.
 Bez klucza wszystko działa w trybie replay: zamiast agenta linia nakłada nagraną zmianę. Z kluczem
 (dostajesz go na sali albo używasz własnego) agenci naprawdę odpowiadają:
 
+Klucz ustawiasz po `fabryka start` (Krok 2), bo trafia do klastra:
+
 ```bash
-make klucz                   # pyta o klucz: wklej i Enter (nie widać go na ekranie)
+fabryka klucz                # pyta o klucz: wklej i Enter (nie widać go na ekranie); działa na każdej lekcji
 ```
 
-Klucz wklejasz **po pytaniu**, nie jako argument (`make klucz sk-ant-…` make weźmie za nazwę celu, a klucz
-zostanie w historii powłoki). Rodzaj klucza sam wybiera API: `sk-ant-…` to Claude API (Anthropic,
-model `claude-sonnet-5`), `sk-or-…` to OpenRouter. Inny model: `LLM_MODEL=claude-opus-5-5 make klucz`.
-Przed zapisaniem `make klucz` wysyła jedno krótkie zapytanie i mówi, czy klucz działa (401: zły klucz,
+Klucz wklejasz **po pytaniu**, nie jako argument (klucz zostałby w historii powłoki). Na `main` działa też
+`make klucz`; na tagach lekcji jest jego stara wersja, dlatego używaj `fabryka klucz`. Rodzaj klucza sam wybiera API: `sk-ant-…` to Claude API (Anthropic,
+model `claude-sonnet-5`), `sk-or-…` to OpenRouter. Inny model: `LLM_MODEL=claude-opus-5-5 fabryka klucz`.
+Przed zapisaniem `fabryka klucz` wysyła jedno krótkie zapytanie i mówi, czy klucz działa (401: zły klucz,
 429: brak kredytu).
 
 Kroki oznaczone **(z kluczem)** bez klucza pomijasz. `fabryka sprawdz` nigdy nie wymaga modelu.
@@ -485,7 +487,7 @@ Sprawdź to na przebiegu. Zwroty idą do człowieka, więc linia stanie na żó�
 ```bash
 make replay Z=zwroty-czesciowe     # terminal 1: czeka, aż ktoś zatwierdzi
 argo list -n fabryka               # terminal 2: przebieg Running
-make zatwierdz W=<nazwa przebiegu> # terminal 2: Twoje imię trafia do księgi jako human.approved
+make zatwierdz W=<nazwa przebiegu> # terminal 2: Twoje imię trafia do czlowiek.md jako human.approved (księga w lekcji 10)
 ```
 
 Ćwiczenie B: wykonawca ma tylko narzędzia warsztatu (Kyverno, CEL):
@@ -512,26 +514,28 @@ Teza: agent może proponować prawa, ale nie może ich uchwalać. Materiał: [wa
 
 ```bash
 fabryka lekcja 10            # wdraża też klucz fabryki do podpisu księgi (cosign)
-make replay Z=rabat          # terminal 1: próba 2 staje na człowieku
+make replay Z=zwroty-czesciowe   # terminal 1: próba 1 pada na wyroczni, próba 2 staje na człowieku
 argo list -n fabryka         # terminal 2
 make zatwierdz W=<nazwa przebiegu>
 make odbierz
-make ksiega-verify F=.sdlc/out/rabat/proba-2/ledger.jsonl    # łańcuch OK, podpis: Verified OK
+make ksiega-verify F=.sdlc/out/zwroty-czesciowe/proba-2/ledger.jsonl    # łańcuch OK, podpis: Verified OK
 fabryka sprawdz 10           # ✔ łańcuch księgi cały, ✔ podpis cosign pasuje
 ```
 
 Ćwiczenie: manipulacja księgą.
 
 ```bash
-cp .sdlc/out/rabat/proba-2/ledger.jsonl /tmp/ledger-kopia.jsonl
-sed -i.bak 's/human.approved/human.skipped/' .sdlc/out/rabat/proba-2/ledger.jsonl
-make ksiega-verify F=.sdlc/out/rabat/proba-2/ledger.jsonl    # łańcuch pęka w konkretnej linii, podpis nie pasuje
-cp /tmp/ledger-kopia.jsonl .sdlc/out/rabat/proba-2/ledger.jsonl
-make ksiega-verify F=.sdlc/out/rabat/proba-2/ledger.jsonl    # znowu OK
+L=.sdlc/out/zwroty-czesciowe/proba-2/ledger.jsonl
+cp $L /tmp/ledger-kopia.jsonl
+sed -i.bak 's/human.approved/human.skipped/' $L
+make ksiega-verify F=$L      # łańcuch pęka w konkretnej linii, podpis nie pasuje
+cp /tmp/ledger-kopia.jsonl $L
+make ksiega-verify F=$L      # znowu OK
 ```
 
-Ślad: otwórz Jaegera (http://localhost:16686), serwis `fabryka-linia`, operację `zlecenie rabat`: jeden
-trace z krokami obu prób. Link jest też w karcie: `grep Ślad .sdlc/out/rabat/proba-2/karta.md`.
+Karta zlecenia: `cat .sdlc/out/zwroty-czesciowe/proba-2/karta.md` (próby, decyzja, hash linii, kto zaakceptował).
+**(z kluczem)** Ślad agenta: Jaeger (`fabryka adresy`), serwis `wykonawca`, ostatni ślad; policz wywołania narzędzi
+i porównaj z liczbą linii `narzedzia.jsonl`. Jeden ślad całego zlecenia (serwis `fabryka-linia`) dochodzi w finale.
 
 ```bash
 fabryka mapa                 # wszystkie bloczki L1-L10 na zielono

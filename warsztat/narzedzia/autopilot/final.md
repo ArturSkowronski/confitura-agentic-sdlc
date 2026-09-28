@@ -29,7 +29,7 @@ Nie merguj ręcznie i nie zmieniaj ustawień repo poza make github.
 
 Jeśli zostanie czas: ćwiczenie z pochodzeniem (warsztat/final-github.md). Zapytaj mnie, zanim wypchniesz ręczny commit.
 Krok 4. `fabryka sprawdz final`. Czerwone: przeczytaj komunikat i popraw raz. Nadal czerwone:
-`fabryka rozwiazanie final`, znowu `fabryka sprawdz final`, i pokaż mi różnicę między Twoją wersją a rozwiązaniem.
+`fabryka rozwiaz final`, znowu `fabryka sprawdz final`, i pokaż mi różnicę między Twoją wersją a rozwiązaniem.
 Krok 5. Raport po polsku, najwyżej 8 punktów:
 - co zmieniłeś i w których plikach,
 - który bloczek fabryki się zapalił (porównaj `fabryka mapa` przed i po): issue jako zlecenie, PR jako wynik, bramki w GitHub Actions,

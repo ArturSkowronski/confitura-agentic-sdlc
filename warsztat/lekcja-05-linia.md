@@ -30,7 +30,7 @@ do kontrolera kagent, nigdy bezpośrednio do API modelu. Klucz do modelu widzi t
 
 ## Ćwiczenie: ten sam graf, prawdziwy agent (8 min)
 
-1. Ustaw klucz, jeśli jeszcze nie masz: `make klucz`.
+1. Ustaw klucz, jeśli jeszcze nie masz: `fabryka klucz`.
 2. Uruchom: `make zlecenie Z=rabat`. To potrwa dwie do pięciu minut.
 3. W hali otwórz krok `wykonawca` i patrz na log. Równolegle:
    `kubectl exec -n fabryka deploy/magazyn -- tail -f /work/events.jsonl` pokazuje każde narzędzie.

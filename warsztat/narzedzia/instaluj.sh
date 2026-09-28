@@ -11,6 +11,9 @@ mkdir -p "$bin" "$data/autopilot" "$HOME/.claude/commands"
 install -m 0755 "$src/fabryka" "$bin/fabryka"
 cp "$src"/autopilot/*.md "$data/autopilot/"
 cp "$src/claude-autopilot.md" "$HOME/.claude/commands/fabryka-autopilot.md"
+# Rozwiązania, których nie da się wziąć wprost z tagu następnej lekcji (lekcja 9), i skrypt klucza z main.
+rm -rf "$data/rozwiazania"; [ -d "$src/rozwiazania" ] && cp -R "$src/rozwiazania" "$data/rozwiazania"
+[ -f "$src/../../scripts/klucz.sh" ] && cp "$src/../../scripts/klucz.sh" "$data/klucz.sh"
 # Powitanie też poza repo: tagi lekcji są starsze niż .devcontainer, więc po fabryka lekcja N pliku w repo nie ma.
 [ -f "$src/../../.devcontainer/witaj.txt" ] && cp "$src/../../.devcontainer/witaj.txt" "$data/witaj.txt"
 case ":$PATH:" in

@@ -93,7 +93,7 @@ ADR-0001, raz jako kontekst, raz jako bramka) jest jej najkrótszym dowodem.
 | 0:05 | Lekcja 1: klaster i pierwszy agent | 5-6 |
 | 0:16 | Lekcja 2: warsztat i narzędzia | 7-8 |
 | 0:27 | Lekcja 3: kontekst L1–L5 | 9-10 |
-| 0:38 | Lekcja 4: przyjęcie, klucze (`make klucz`) | 11 |
+| 0:38 | Lekcja 4: przyjęcie, klucze (`fabryka klucz`) | 11 |
 | 0:49 | Lekcja 5: linia | 12-13 |
 | 1:00 | Lekcja 6: kontrola jakości | 14-15 |
 | 1:11 | Lekcja 7: wyrocznia | 16-17 |
@@ -149,7 +149,7 @@ pokazujesz z laptopa demo, a uczestnicy robią `make zlecenie … AGENT=replay`.
 - Instrukcje dla modeli (systemMessage agentów, prompt wykonawcy, soczewki review, opisy narzędzi MCP,
   szkielet `AGENTS.md`) są po angielsku, odpowiedzi i materiały po polsku. Dokumenty organizacji
   (ADR-y, konwencje, incydent) zostają po polsku i tak trafiają do agenta.
-- `platforma/kagent/modelconfig.yaml` ma `${LLM_MODEL}` i `${LLM_BASE_URL}`: wdrażaj przez `make klucz`
+- `platforma/kagent/modelconfig.yaml` ma `${LLM_MODEL}` i `${LLM_BASE_URL}`: wdrażaj przez `fabryka klucz` (na main też `make klucz`)
   albo `make klaster`, nie `kubectl apply -f platforma/kagent/` na cały katalog (zepsuje ModelConfig).
 
 - jqwik 1.10.1 wypisuje w logu testów tekst do agentów AI. Zostawiamy celowo (odsłona 7).

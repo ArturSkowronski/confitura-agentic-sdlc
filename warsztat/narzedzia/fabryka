@@ -13,6 +13,7 @@
 #   fabryka rozwiaz N           (solve) podmień pliki na końcowe, wdróż, wypisz każdy krok, sprawdź; bez modelu
 #   fabryka zaloguj             logowanie Claude Code (w Codespaces z fabryka callback '<adres z przeglądarki>')
 #   fabryka polacz [nazwa]      na laptopie: połącz klon forka z codespace'em; potem fabryka … i fabryka cs <komenda> biegną tam
+#   fabryka klucz               klucz do modelu (sk-ant-… Claude API, sk-or-… OpenRouter); działa na każdej lekcji
 #   fabryka reset               klaster od zera (kind delete + start), gdy stan jest nie do odratowania
 #   fabryka adresy              klikalne linki do hali (Argo), Jaegera i kagent: w Codespaces i na laptopie
 #   fabryka witaj               powitanie i pierwsze kroki (działa na każdej lekcji)
@@ -261,7 +262,7 @@ sprawdz_1() {
     brak "odpowiedź agenta: model nie odpowiada (${powod:-$(printf '%s' "$out" | tail -1 | cut -c1-70)}), sprawdź później"; return
   fi
   local n; n=$(printf '%s\n' "$out" | grep -cE '^\s*([-*•]|[0-9]+\.)\s')
-  [ "$n" -ge 2 ] && [ "$n" -le 6 ] && ok "agent odpowiada listą $n pytań" || nie "agent nie odpowiada listą 2-4 pytań (widzę $n punktów)"
+  [ "$n" -ge 2 ] && [ "$n" -le 6 ] && ok "agent odpowiada listą $n pytań" || nie "agent nie odpowiada listą 2-6 pytań (widzę $n punktów)"
 }
 sprawdz_2() {
   k get mcpserver warsztat -o jsonpath='{.spec.deployment.env.PROTECTED_PATHS}' | grep -q sdlc && ok "PROTECTED_PATHS wdrożone w serwerze" || nie "w klastrze PROTECTED_PATHS nie zawiera sdlc (kubectl apply -f platforma/warsztat/mcpserver.yaml)"
@@ -273,7 +274,8 @@ sprawdz_2() {
 sprawdz_3() {
   local m; m=$(python3 sdlc/context.py route --title "Rabat 10% dla zamówień powyżej 500 zł" 2>/dev/null | grep -oE 'trafia do `[a-z-]+`' | head -1 | tr -d '`' | sed 's/trafia do //')
   echo "$m" | grep -q pricing-lib && ok "routing: rabat trafia do pricing-lib" || nie "routing wskazuje ${m:-?}: uzupełnij owns w system/pricing-lib/module.json"
-  grep -q "pricing-lib" AGENTS.md && ok "AGENTS.md przebudowany" || nie "brak AGENTS.md: make agents-md"
+  python3 -c "import sys; sys.path.insert(0, 'sdlc'); import context; sys.stdout.write(context.agents_md(context.build_index()))" 2>/dev/null | cmp -s - AGENTS.md \
+    && ok "AGENTS.md aktualny względem źródeł" || nie "AGENTS.md nieaktualny albo go brak: make agents-md"
 }
 sprawdz_4() {
   grep -qiE '^\s*(#+\s*)?kryteria' zlecenia/anulowanie.md && ok "anulowanie ma sekcję Kryteria" || nie "zlecenia/anulowanie.md bez sekcji Kryteria:"
@@ -354,7 +356,7 @@ sprawdz_final() {
 
 cmd_sprawdz() {
   repo; local n; n=$(lekcja_nr "${1:-}"); BLAD=0
-  if [ "$n" != 3 ] && [ "$n" != 4 ] && [ "$n" != 8 ]; then klaster_jest || umrzyj "Brak klastra: fabryka start"; kontekst; fi
+  if [ "$n" != 3 ] && [ "$n" != 4 ] && [ "$n" != 6 ] && [ "$n" != 8 ]; then klaster_jest || umrzyj "Brak klastra: fabryka start"; kontekst; fi
   info "Sprawdzam lekcję $n"
   "sprawdz_$n"
   echo; [ $BLAD = 0 ] && { info "Lekcja $n: zielono."; return 0; } || { echo "Lekcja $n: czerwono. Popraw albo: fabryka rozwiaz $n (bez modelu, wypisuje każdy krok)"; return 1; }
@@ -406,10 +408,10 @@ cmd_rozwiaz() {
     krok "źródło: tag $nast (wersja końcowa ćwiczenia $n)"
     for p in $pliki; do
       przed=$(sha "$p"); tmp=$(mktemp); [ -f "$p" ] && cp "$p" "$tmp"
-      git show "$nast:$p" > "$p" || umrzyj "Nie mogę odczytać $nast:$p"
+      plik_rozwiazania "$n" "$p" > "$p" || umrzyj "Nie mogę odczytać rozwiązania $p"
       po=$(sha "$p")
       if [ "$przed" = "$po" ]; then krok "bez zmian   $p (już jest wersją końcową)"
-      else krok "podmieniony $p  ← $nast:$p  (sha256 $przed → $po, $(git diff --no-index --numstat "$tmp" "$p" 2>/dev/null | awk '{print "+"$1" -"$2" linii"}'))"; fi
+      else krok "podmieniony $p  ← $(zrodlo_rozwiazania "$n" "$p")  (sha256 $przed → $po, $(git diff --no-index --numstat "$tmp" "$p" 2>/dev/null | awk '{print "+"$1" -"$2" linii"}'))"; fi
       rm -f "$tmp"
     done
     gotowe "$n" >/dev/null && krok "kopia wzorcowa: rozwiazania/$(printf 'lekcja-%02d' "$n")/ (pliki *-f$n)"
@@ -421,8 +423,8 @@ cmd_rozwiaz() {
       1) uruchom kubectl apply -f platforma/kagent/agent-przyjecie.yaml; uruchom kubectl wait --for=condition=Ready agent/przyjecie -n "$NS" --timeout=180s ;;
       3|4|8) uruchom make -s wyslij >/dev/null ;;
       5) uruchom make -s replay Z=rabat; krok "\$ make odbierz"; make -s odbierz | wc -l | xargs -I{} echo "    odebrane pliki: {} (.sdlc/out/)" ;;
-      10) krok "\$ make replay Z=rabat   (w tle; próba 2 staje na człowieku)"
-          make -s replay Z=rabat > /tmp/fabryka-rozwiaz-10.log 2>&1 &
+      10) krok "\$ make replay Z=zwroty-czesciowe   (w tle; próba 2 staje na człowieku)"
+          make -s replay Z=zwroty-czesciowe > /tmp/fabryka-rozwiaz-10.log 2>&1 &
           czekaj_i_zatwierdz; wait; tail -2 /tmp/fabryka-rozwiaz-10.log | sed 's/^/    /'
           krok "\$ make odbierz"; make -s odbierz | wc -l | xargs -I{} echo "    odebrane pliki: {} (.sdlc/out/)" ;;
       *) krok "\$ fabryka sync   (make setup, make linia, Kyverno, konfiguracja Argo, klucz cosign)"; sync ;;
@@ -498,6 +500,14 @@ $prompt"
 # Gotowe warianty ćwiczenia: pliki z lekcji N+1 jako rozwiazania/lekcja-NN/<nazwa>-fN.<rozszerzenie>. Osobny katalog,
 # bo np. ArchitectureRulesTest-f6.java obok oryginału zepsułby build. Katalog jest w .git/info/exclude: nie trafia
 # do git status ani do stash, a przy następnej lekcji powstaje od nowa.
+# Plik rozwiązania ćwiczenia N: najpierw z narzędzi (rozwiazania/lekcja-NN/<ścieżka>), gdy tag N+1 zawiera w tym
+# pliku więcej niż samo ćwiczenie (lekcja 9: fabryka.yaml z lekcji 10 ma już krok księgi), inaczej z tagu N+1.
+plik_rozwiazania() {   # $1: numer lekcji, $2: ścieżka w repo; wypisuje treść
+  local o; o="$DATA/rozwiazania/$(printf 'lekcja-%02d' "$1")/$2"
+  if [ -f "$o" ]; then cat "$o"; else git show "$(tag_lekcji $(($1 + 1))):$2"; fi
+}
+zrodlo_rozwiazania() { [ -f "$DATA/rozwiazania/$(printf 'lekcja-%02d' "$1")/$2" ] && echo "narzędzia (wersja tylko z ćwiczeniem $1)" || echo "$(tag_lekcji $(($1 + 1))):$2"; }
+
 gotowe() {
   local n=$1 top; top=$(git rev-parse --show-toplevel)
   rm -rf "$top/rozwiazania"
@@ -509,7 +519,7 @@ gotowe() {
     mkdir -p "$dir"
     case "$n" in
       5) printf '%s\n' "# Lekcja 5: linia. Rozwiązanie to przebieg, nie plik." "make replay Z=rabat      # na końcu: Wynik: Succeeded" "make odbierz" "fabryka sprawdz 5" ;;
-      10) printf '%s\n' "# Lekcja 10: ślad i manipulacja księgą." "make replay Z=rabat      # próba 2 staje na człowieku; w drugim terminalu: make zatwierdz W=<przebieg>" "make odbierz" "make ksiega-verify F=.sdlc/out/rabat/proba-2/ledger.jsonl" "fabryka sprawdz 10" ;;
+      10) printf '%s\n' "# Lekcja 10: ślad i manipulacja księgą." "make replay Z=zwroty-czesciowe   # próba 2 staje na człowieku; w drugim terminalu: make zatwierdz W=<przebieg>" "make odbierz" "make ksiega-verify F=.sdlc/out/zwroty-czesciowe/proba-2/ledger.jsonl" "fabryka sprawdz 10" ;;
       *) printf '%s\n' "# Finał: fabryka na Twoim forku (warsztat/final-github.md)." "make github" "make issue Z=rabat" "make ciagnij AGENT=replay" "gh pr list" "fabryka sprawdz final" ;;
     esac > "$dir/komendy-$( [ "$n" = final ] && echo final || echo "f$n").txt"
     echo "rozwiazania/$(basename "$dir")/komendy-$( [ "$n" = final ] && echo final || echo "f$n").txt"
@@ -520,7 +530,7 @@ gotowe() {
   local p b cel
   for p in $pliki; do
     b=$(basename "$p"); cel="${b%.*}-f$n.${b##*.}"
-    git show "$nast:$p" > "$dir/$cel" 2>/dev/null || { rm -f "$dir/$cel"; continue; }
+    plik_rozwiazania "$n" "$p" > "$dir/$cel" 2>/dev/null || { rm -f "$dir/$cel"; continue; }
     printf '%s  →  %s\n' "$cel" "$p" >> "$dir/GDZIE.txt"
     echo "rozwiazania/$(printf 'lekcja-%02d' "$n")/$cel"
   done
@@ -560,6 +570,13 @@ cmd_witaj() {
   [ -f "$w" ] && cat "$w" || pomoc
 }
 
+# Klucz do modelu: skrypt z narzędzi (z main), bo tagi lekcji mają starą wersję make klucz (read -s w dash).
+cmd_klucz() {
+  repo; [ -f "$DATA/klucz.sh" ] || umrzyj "Brak skryptu klucza w narzędziach. Uruchom: fabryka aktualizuj"
+  klaster_jest || umrzyj "Klucz trafia do klastra, a klastra jeszcze nie ma: najpierw fabryka start."
+  FABRYKA_REPO=$PWD bash "$DATA/klucz.sh"
+}
+
 cmd_aktualizuj() {
   local tmp; tmp=$(mktemp -d)
   if git rev-parse --show-toplevel >/dev/null 2>&1 && git fetch -q origin main 2>/dev/null && git archive FETCH_HEAD warsztat/narzedzia 2>/dev/null | tar -x -C "$tmp" 2>/dev/null; then :;
@@ -567,7 +584,7 @@ cmd_aktualizuj() {
   bash "$tmp/warsztat/narzedzia/instaluj.sh"; rm -rf "$tmp"
 }
 
-pomoc() { sed -n '2,19p' "$0" | sed 's/^# \{0,1\}//'; }
+pomoc() { sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'; }
 
 # Tryb codespace (laptop po fabryka polacz): komendy fabryki biegną tam, gdzie jest klaster.
 if cs_aktywny; then
@@ -595,6 +612,7 @@ case "${1:-pomoc}" in
   reset) cmd_reset ;;
   adresy|linki) cmd_adresy ;;
   witaj) cmd_witaj ;;
+  klucz) cmd_klucz ;;
   aktualizuj) cmd_aktualizuj ;;
   sync) repo; sync ;;
   *) pomoc ;;

@@ -87,7 +87,7 @@ bloczek się zapalił. Wszystkie prompty: [autopilot.md](autopilot.md). Zasada, 
 niczego nie zatwierdza za człowieka.
 
 Claude Code w codespace: uruchom `claude` i zaloguj się swoim kontem albo kluczem API. Klucz do modelu
-dla samej fabryki (agenci w klastrze) dostajesz na sali: `make klucz`. Bez niego wszystko działa w replay.
+dla samej fabryki (agenci w klastrze) dostajesz na sali: `fabryka klucz` (po `fabryka start`). Bez niego wszystko działa w replay.
 
 ## Gdy coś nie działa
 

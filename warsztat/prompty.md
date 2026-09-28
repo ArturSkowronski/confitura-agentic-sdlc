@@ -13,14 +13,14 @@ Komendy make trwające dłużej niż 2 minuty uruchamiaj w tle albo z limitem 10
 Gdy sprawdzenie nie przechodzi, pokaż mi wynik i zaproponuj poprawkę. Nie obchodź bramki.
 ```
 
-## 00 · Przygotowanie laptopa
+## 00 · Przygotowanie środowiska
 
 ```text
-Przygotuj mój laptop do warsztatu według SETUP.md.
-1. Sprawdź kind, kubectl, helm, argo, cosign, java 21, mvn i gh.
-   Czego brakuje: zaproponuj komendy brew, nie instaluj bez pytania.
-2. make klaster, potem make setup (w tle, do 15 min każde).
-3. make doctor i omów każdą czerwoną pozycję.
+Przygotuj środowisko warsztatu według README.md (Krok 1 i Krok 2).
+1. Sprawdź: fabryka (lista komend) i git tag -l 'lekcja-*' (ma być 10).
+   Brak fabryka na laptopie: make narzedzia i nowy terminal.
+2. fabryka lekcja 1, potem fabryka start (w tle, do 15 min).
+3. fabryka mapa i kubectl get agent -n fabryka.
 Nie zmieniaj plików w repo. Gdy coś pada, pokaż log i zatrzymaj się.
 ```
 
@@ -40,6 +40,8 @@ Nic więcej w pliku nie zmieniaj. Potem:
    zamówienie, dopóki nie jest opłacone."
 Pokaż odpowiedź agenta. Jeśli to wypracowanie zamiast pytań,
 popraw instrukcję i powtórz krok 3 (najwyżej dwa razy).
+Bez klucza do modelu pomiń krok 3: fabryka sprawdz 1 i tak
+sprawdzi plik i agenta.
 ```
 
 ## 02 · Ściana dla wykonawcy
@@ -50,7 +52,7 @@ Lekcja 2. Najpierw pokaż problem, potem go zamknij.
    i powiedz, co odpowiedziało narzędzie"
    Zapis przejdzie: to jest dziura, którą zamykamy.
 2. W platforma/warsztat/mcpserver.yaml ustaw
-   PROTECTED_PATHS: "sdlc platforma system/architecture".
+   PROTECTED_PATHS: "sdlc platforma system/architecture scenarios".
    HIDDEN_PATHS zostaw puste. Nic innego nie zmieniaj.
 3. kubectl apply -f platforma/warsztat/mcpserver.yaml
    kubectl rollout status -n fabryka deploy/warsztat --timeout=180s
@@ -58,6 +60,8 @@ Lekcja 2. Najpierw pokaż problem, potem go zamknij.
 5. kubectl exec -n fabryka deploy/magazyn -- tail -3 /work/events.jsonl
    Pokaż zdarzenie gate.tamper_attempt.
 6. make wyslij (agent nadpisał policy.json w kopii repo w klastrze).
+Bez klucza do modelu pomiń kroki 1 i 4: fabryka sprawdz 2 sprawdza
+serwer bezpośrednio.
 ```
 
 ## 03 · Właściciel pojęcia
@@ -99,7 +103,8 @@ Lekcja 5. Linia w Argo.
 3. Jeśli make doctor mówi „klucz do modelu ustawiony”: make zlecenie Z=rabat
    w tle. Co minutę pokazuj:
    kubectl exec -n fabryka deploy/magazyn -- tail -3 /work/events.jsonl
-4. make odbierz i porównaj łatkę agenta z nagraniem: moduł, pliki, testy.
+4. make odbierz i porównaj łatkę agenta z nagraniem
+   sdlc/replays/rabat-w-pricing.patch: moduł, pliki, testy.
 Nie poprawiaj łatki agenta. Oglądamy ją, nie naprawiamy.
 ```
 
@@ -131,14 +136,16 @@ Lekcja 7. Wyrocznia.
 4. Powtórz krok 2. Oczekuję „Rejected: … is out of the agent's reach”.
 5. Pokaż holdout.peek w /work/events.jsonl.
 Sam też nie czytaj scenariuszy i ich nie streszczaj: udajemy,
-że ich nie znamy.
+że ich nie znamy. Bez klucza do modelu pomiń kroki 2 i 4:
+fabryka sprawdz 7 sprawdza serwer bezpośrednio.
 ```
 
 ## 08 · Reguła review z kryteriami
 
 ```text
 Lekcja 8. Zmieniasz sdlc/review-rules.json: to ćwiczenie.
-1. make odbierz. Pokaż proba-1/review-2-review.md i proba-1/feedback.md
+1. make replay Z=zwroty-czesciowe (w tle), potem make odbierz.
+   Pokaż proba-1/review-2-review.md i proba-1/feedback.md
    z .sdlc/out/zwroty-czesciowe/ (feedback to wszystko, co dostał agent).
 2. Dopisz regułę kind "llm", lens "correctness", w formacie LLM-001:
    id, kind, lens, rule, pass, fail, example_fail.
@@ -188,16 +195,17 @@ Lekcja 9B.
 
 ```text
 Lekcja 10.
-1. make odbierz
-2. make ksiega-verify F=.sdlc/out/zwroty-czesciowe/proba-2/ledger.jsonl
+1. make replay Z=zwroty-czesciowe w tle. Gdy stanie na człowieku,
+   zatrzymaj się i zapytaj mnie; po zgodzie make zatwierdz W=<przebieg>.
+2. make odbierz, potem
+   make ksiega-verify F=.sdlc/out/zwroty-czesciowe/proba-2/ledger.jsonl
 3. Skopiuj ledger.jsonl do pliku obok. W oryginale zmień imię w zdarzeniu
    human.approved.
-4. Powtórz krok 2. Pokaż, w której linii pęka łańcuch i co mówi cosign.
+4. Powtórz weryfikację. Pokaż, w której linii pęka łańcuch i co mówi cosign.
 5. Przywróć plik z kopii; weryfikacja ma znów przejść.
-6. Z karta.md weź link „Ślad” (trace id na końcu). Policz spany:
-   curl -s localhost:16686/api/traces/<id> | jq '[.data[0].spans[]
-   | .operationName] | group_by(.) | map({(.[0]): length}) | add'
-   Porównaj „warsztat ·” z liczbą linii narzedzia.jsonl.
+6. Pokaż karta.md z proba-2: próby, decyzja, hash linii, kto zaakceptował.
+   Z kluczem do modelu: w Jaegerze (serwis wykonawca, ostatni ślad) policz
+   wywołania narzędzi i porównaj z liczbą linii narzedzia.jsonl.
 ```
 
 ## 11 A · Finał: fork, issue, PR
@@ -221,12 +229,12 @@ Nie merguj ręcznie i nie zmieniaj ustawień repo poza make github.
 
 ```text
 Finał, ćwiczenie. Kod po bramkach.
-1. make issue Z=zwroty-czesciowe, make ciagnij AGENT=replay.
-   Poczekaj na PR z etykietą fabryka:czlowiek.
-2. git fetch origin && git switch agent/issue-<nr>
-   Dopisz komentarz na końcu jednego pliku w
-   system/payments-service/src/main/java, commit, git push.
+1. Weź PR rabatu z poprzedniego ćwiczenia (etykieta fabryka:czlowiek).
+2. git stash -u && git fetch origin && git switch agent/issue-<nr>
+   Dopisz komentarz na końcu system/orders-service/src/main/java/pl/
+   confitura/shop/orders/OrdersModule.java, commit, git push.
 3. Poczekaj na check `pochodzenie`, pokaż: gh run view --log-failed
 4. git revert --no-edit HEAD && git push; pochodzenie ma być zielone.
+5. git switch - && git stash pop
 Nie zatwierdzaj PR. To robię ja.
 ```

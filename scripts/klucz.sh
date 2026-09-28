@@ -4,7 +4,7 @@
 # Rodzaj klucza wybiera API: sk-ant-… to Claude API (Anthropic), sk-or-… to OpenRouter. LLM_BASE_URL i LLM_MODEL
 # ustawione ręcznie mają pierwszeństwo.
 set -euo pipefail
-cd "$(dirname "$0")/.."
+cd "${FABRYKA_REPO:-$(dirname "$0")/..}"   # fabryka klucz uruchamia kopię z narzędzi, w katalogu repo
 twoj_url=${LLM_BASE_URL:-}; twoj_model=${LLM_MODEL:-}
 . scripts/workshop.env
 

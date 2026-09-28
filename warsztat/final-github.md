@@ -43,7 +43,9 @@ issue (etykieta fabryka) ─▶ fabryka-ciagnie ─▶ linia w Argo ─▶ PR na
    - opis agenta i kartę zlecenia z linkiem do śladu,
    - review fabryki jako review PR, ze znaleziskami w liniach kodu,
    - commit `fabryka: księga zlecenia`, czyli `.fabryka/issue-<n>/` z księgą i podpisem,
-   - cztery checki z Actions. Po zielonych auto-merge scala PR, a `Closes #<n>` zamyka issue.
+   - cztery checki z Actions. Rabat dotyka pricing-lib, biblioteki wrażliwej, więc PR dostaje `fabryka:czlowiek`
+     i czeka na Twoje review. Zlecenie spoza ścieżek wrażliwych po zielonych checkach scala auto-merge,
+     a `Closes #<n>` zamyka issue.
 5. Kliknij link do śladu. Jeden trace: przebieg Argo, kroki fabryki (`próba 1 · wykonawca`), pod nim agent
    (`invoke_agent`, `generate_content`, `execute_tool`) i narzędzia warsztatu (`warsztat · write_file …`).
    Odrzucone próby agenta (✋) są na czerwono.
