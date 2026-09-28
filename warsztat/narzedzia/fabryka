@@ -579,8 +579,8 @@ cmd_klucz() {
 
 cmd_aktualizuj() {
   local tmp; tmp=$(mktemp -d)
-  if git rev-parse --show-toplevel >/dev/null 2>&1 && git fetch -q origin main 2>/dev/null && git archive FETCH_HEAD warsztat/narzedzia 2>/dev/null | tar -x -C "$tmp" 2>/dev/null; then :;
-  else git -C "$tmp" init -q && git -C "$tmp" fetch -q --depth 1 "$UPSTREAM" main && git -C "$tmp" archive FETCH_HEAD warsztat/narzedzia | tar -x -C "$tmp" || umrzyj "Nie udało się pobrać narzędzi."; fi
+  if git rev-parse --show-toplevel >/dev/null 2>&1 && git fetch -q origin main 2>/dev/null && git archive FETCH_HEAD warsztat/narzedzia scripts/klucz.sh .devcontainer/witaj.txt 2>/dev/null | tar -x -C "$tmp" 2>/dev/null; then :;
+  else git -C "$tmp" init -q && git -C "$tmp" fetch -q --depth 1 "$UPSTREAM" main && git -C "$tmp" archive FETCH_HEAD warsztat/narzedzia scripts/klucz.sh .devcontainer/witaj.txt | tar -x -C "$tmp" || umrzyj "Nie udało się pobrać narzędzi."; fi
   bash "$tmp/warsztat/narzedzia/instaluj.sh"; rm -rf "$tmp"
 }
 
