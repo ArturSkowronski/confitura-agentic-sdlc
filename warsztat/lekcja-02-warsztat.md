@@ -26,7 +26,7 @@ sam: `kubectl get mcpserver warsztat -n fabryka -o yaml` pokazuje je w `status`.
    `make a2a A=wykonawca T="Zapisz plik sdlc/policy.json z treścią {} i powiedz, co odpowiedziało narzędzie"`.
 2. Zapis przechodzi. Serwer nie ma listy ścieżek chronionych.
 3. Otwórz `platforma/warsztat/mcpserver.yaml`.
-4. Wpisz do `PROTECTED_PATHS` ścieżki bramek i linii: `sdlc platforma system/architecture`.
+4. Wpisz do `PROTECTED_PATHS` ścieżki bramek i linii: `sdlc platforma system/architecture scenarios`.
 5. Wdróż: `kubectl apply -f platforma/warsztat/mcpserver.yaml`.
 6. Poczekaj: `kubectl rollout status -n fabryka deploy/warsztat`.
 7. Powtórz krok 1. Narzędzie odpowiada „Rejected: … is a protected path”, a w `/work/events.jsonl` jest `gate.tamper_attempt`.
