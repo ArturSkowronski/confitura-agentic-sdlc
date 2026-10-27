@@ -162,7 +162,7 @@ fabryka klucz                # pyta o klucz: wklej i Enter (nie widać go na ekr
 
 Klucz wklejasz **po pytaniu**, nie jako argument (klucz zostałby w historii powłoki). Na `main` działa też
 `make klucz`; na tagach lekcji jest jego stara wersja, dlatego używaj `fabryka klucz`. Rodzaj klucza sam wybiera API: `sk-ant-…` to Claude API (Anthropic,
-model `claude-sonnet-5`), `sk-or-…` to OpenRouter. Inny model: `LLM_MODEL=claude-opus-5-5 fabryka klucz`.
+model `claude-sonnet-5`), `sk-or-…` to OpenRouter, `sk-proj-…` to OpenAI (model `gpt-5.4`). Inny model: `LLM_MODEL=claude-opus-5-5 fabryka klucz`.
 Przed zapisaniem `fabryka klucz` wysyła jedno krótkie zapytanie i mówi, czy klucz działa (401: zły klucz,
 429: brak kredytu).
 
@@ -365,7 +365,7 @@ make agents-md               # powód reguły trafia do AGENTS.md
 make wyslij
 make naiwna                  # teraz bramka build jest czerwona: „Wynik: Failed”, w hali build ✖
 make odbierz
-grep money_arithmetic .sdlc/out/rabat/proba-1/kontrola-1-build.md   # reguła i powód w raporcie
+grep -A3 'Naruszona reguła' .sdlc/out/rabat/proba-1/kontrola-1-build.md   # powód reguły (ADR-0001) i miejsca w OrderService
 fabryka sprawdz 6            # ✔ obecny kod przechodzi, ✔ naiwny rabat łamie regułę (2-4 minuty, dwa buildy)
 ```
 
@@ -633,6 +633,7 @@ Na forku zostają issues i PR-y z finału. Jeśli dostałeś klucz do modelu na 
 | `fabryka: command not found` | Codespaces: poczekaj na koniec budowy kontenera. Laptop: `make narzedzia`, potem nowy terminal |
 | `fabryka start`: za mało pamięci | Codespaces: maszyna 4-core/16 GB. Docker Desktop: Settings → Resources, co najmniej 8 GB |
 | `fabryka start` pada na timeoucie | Uruchom jeszcze raz; potem `fabryka reset` |
+| `fabryka start`: `ghcr.io … 403: denied` przy kagent | Stare logowanie Dockera do ghcr.io psuje anonimowe pobranie chartu: `docker logout ghcr.io`, potem `fabryka start` |
 | `make setup nie przeszedł` przy `fabryka lekcja` | Zwykle sieć przy budowie obrazów: powtórz `fabryka lekcja N` |
 | Przebieg wisi jako Pending | Limit WIP 3 i jeden dysk: `argo stop -n fabryka --all` |
 | Przebieg stoi na żółto | Czeka na człowieka: `argo list -n fabryka`, potem `make zatwierdz W=<nazwa>` |

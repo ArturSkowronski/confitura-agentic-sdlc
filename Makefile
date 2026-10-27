@@ -53,7 +53,7 @@ doctor: ## Sprawdź, czy wszystko działa (lokalnie i w klastrze)
 lekcja: ## Przeskocz do lekcji: make lekcja N=4
 	@scripts/lekcja.sh $(N)
 
-klucz: ## Klucz do modelu (sk-ant-… Claude API, sk-or-… OpenRouter): make klucz, klucz wklejasz po pytaniu
+klucz: ## Klucz do modelu (sk-ant-… Claude API, sk-or-… OpenRouter, sk-proj-… OpenAI): make klucz, klucz wklejasz po pytaniu
 	@bash scripts/klucz.sh
 
 a2a: ## Zapytaj agenta przez A2A: make a2a A=probny T="Przedstaw się"

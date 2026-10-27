@@ -13,7 +13,7 @@
 #   fabryka rozwiaz N           (solve) podmień pliki na końcowe, wdróż, wypisz każdy krok, sprawdź; bez modelu
 #   fabryka zaloguj             logowanie Claude Code (w Codespaces z fabryka callback '<adres z przeglądarki>')
 #   fabryka polacz [nazwa]      na laptopie: połącz klon forka z codespace'em; potem fabryka … i fabryka cs <komenda> biegną tam
-#   fabryka klucz               klucz do modelu (sk-ant-… Claude API, sk-or-… OpenRouter); działa na każdej lekcji
+#   fabryka klucz               klucz do modelu (sk-ant-… Claude API, sk-or-… OpenRouter, sk-proj-… OpenAI); działa na każdej lekcji
 #   fabryka reset               klaster od zera (kind delete + start), gdy stan jest nie do odratowania
 #   fabryka adresy              klikalne linki do hali (Argo), Jaegera i kagent: w Codespaces i na laptopie
 #   fabryka witaj               powitanie i pierwsze kroki (działa na każdej lekcji)
@@ -115,7 +115,7 @@ tagi() {
 
 # ------------------------------------------------------------------ klaster w stanie bieżącej lekcji
 sync() {
-  klaster_jest || umrzyj "Brak klastra kind „$CLUSTER”. Najpierw: fabryka start"
+  klaster_jest || umrzyj "Brak klastra kind „${CLUSTER}”. Najpierw: fabryka start"
   kontekst
   if ma_target setup; then
     info "Klaster: make setup (obrazy, warsztat, agenci, linia; kilka minut przy pierwszym razie)"
@@ -156,7 +156,7 @@ preflight() {
 cmd_start() {
   repo
   preflight
-  info "Klaster kind „$CLUSTER” (pierwszy raz 5-10 minut)"
+  info "Klaster kind „${CLUSTER}” (pierwszy raz 5-10 minut)"
   # klaster.sh jest idempotentny: na wolniejszej maszynie pody wstają po timeoucie, drugie podejście je zastaje.
   make -s klaster || { info "Klaster wstaje wolniej niż zwykle, próbuję jeszcze raz"; make -s klaster; } || umrzyj "make klaster nie przeszedł dwa razy. fabryka reset albo pokaż log prowadzącemu."
   sync
@@ -196,7 +196,7 @@ cmd_lekcja() {
 
 cmd_reset() {
   repo
-  info "Kasuję klaster kind „$CLUSTER” i stawiam go od zera"
+  info "Kasuję klaster kind „${CLUSTER}” i stawiam go od zera"
   kind delete cluster --name "$CLUSTER" >/dev/null 2>&1 || true
   cmd_start
 }
@@ -255,6 +255,7 @@ sprawdz_1() {
     && ok "agent przyjecie wdrożony i Ready" || nie "agent przyjecie nie jest Ready: kubectl apply -f $f"
   local key; key=$(k get secret fabryka-llm -o jsonpath='{.data.LLM_API_KEY}' 2>/dev/null | base64 -d 2>/dev/null)
   if [ -z "$key" ] || [ "$key" = brak ]; then brak "odpowiedź agenta: pominięta, brak klucza do modelu (make klucz)"; return; fi
+  k rollout status deploy/przyjecie --timeout=120s >/dev/null 2>&1   # Ready agenta to jeszcze nie pod: bez tego A2A dostaje connection refused
   local out; out=$(python3 sdlc/a2a.py --agent przyjecie --task "Anulowanie zamówienia. Klient może anulować zamówienie, dopóki nie jest opłacone." 2>&1)
   # Model niedostępny (limit, brak środków, sieć) to nie błąd ćwiczenia: instrukcja i wdrożenie są sprawdzone wyżej.
   if [ $? -ne 0 ] || printf '%s' "$out" | grep -qiE 'A2A (błąd|HTTP)|429|credit|quota|rate limit|nie zwrócił tekstu'; then
@@ -385,7 +386,7 @@ sha() { [ -f "$1" ] || { echo "brak"; return; }; { sha256sum "$1" 2>/dev/null ||
 czekaj_i_zatwierdz() {   # lekcja 10: replay staje na człowieku; zatwierdzamy jako fabryka-rozwiaz i czekamy na koniec
   local w="" i
   for i in $(seq 1 90); do
-    w=$(argo list -n "$NS" --running -o name 2>/dev/null | head -1)
+    w=$(argo list -n "$NS" --running -o name 2>/dev/null | grep -v "^No workflows" | head -1)
     if [ -n "$w" ] && argo get -n "$NS" "$w" -o json 2>/dev/null | python3 -c "import json,sys;d=json.load(sys.stdin);sys.exit(0 if any(n['type']=='Suspend' and n['phase']=='Running' for n in d['status'].get('nodes',{}).values()) else 1)"; then
       krok "przebieg $w czeka na człowieka"; uruchom env KTO=fabryka-rozwiaz make -s zatwierdz W="$w"; break
     fi
@@ -511,7 +512,7 @@ zrodlo_rozwiazania() { [ -f "$DATA/rozwiazania/$(printf 'lekcja-%02d' "$1")/$2" 
 gotowe() {
   local n=$1 top; top=$(git rev-parse --show-toplevel)
   rm -rf "$top/rozwiazania"
-  local ex; ex="$(git rev-parse --git-dir)/info/exclude"; mkdir -p "$(dirname "$ex")"
+  local ex; ex=$(git rev-parse --git-path info/exclude); mkdir -p "$(dirname "$ex")"
   grep -qx '/rozwiazania/' "$ex" 2>/dev/null || echo '/rozwiazania/' >> "$ex"
   local dir; dir="$top/rozwiazania/$( [ "$n" = final ] && echo final || printf 'lekcja-%02d' "$n")"
   local pliki=""; [ "$n" = final ] || pliki=$(pliki_cwiczenia "$n")
